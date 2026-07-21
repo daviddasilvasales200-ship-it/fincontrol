@@ -205,17 +205,12 @@ export default function PaginaLogin() {
                       Senha
                     </label>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setMensagem(
-                          "A recuperação de senha será configurada na próxima etapa."
-                        )
-                      }
-                      className="text-xs font-semibold text-red-500 transition hover:text-red-400"
-                    >
-                      Esqueci minha senha
-                    </button>
+                    <Link
+  href="/recuperar-senha"
+  className="text-xs font-semibold text-red-500 transition hover:text-red-400"
+>
+  Esqueci minha senha
+</Link>
                   </div>
 
                   <div className="relative">

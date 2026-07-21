@@ -14,10 +14,13 @@ export default async function ReceitasPage() {
   const supabase = await createClient();
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: claimsData,
+    error: claimsError,
+  } = await supabase.auth.getClaims();
 
-  if (!user) {
+  const userId = claimsData?.claims?.sub;
+
+  if (claimsError || !userId) {
     redirect("/login");
   }
 
@@ -26,7 +29,7 @@ export default async function ReceitasPage() {
     .select(
       "id, tipo, descricao, categoria, valor, data, observacao, created_at"
     )
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("tipo", "receita")
     .order("data", { ascending: false })
     .order("created_at", { ascending: false });
@@ -46,14 +49,14 @@ export default async function ReceitasPage() {
               FinControl
             </p>
 
-            <h1 className="mt-1 text-3xl font-bold">Receitas</h1>
+            <h1 className="mt-1 text-3xl font-bold">
+              Receitas
+            </h1>
 
             <p className="mt-2 text-zinc-400">
               Cadastre, edite e acompanhe todos os seus ganhos.
             </p>
           </div>
-
-
         </header>
 
         <section className="mb-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
@@ -69,7 +72,7 @@ export default async function ReceitasPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <FormularioMovimentacao
             tipo="receita"
-            userId={user.id}
+            userId={userId}
           />
 
           <section className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6 lg:col-span-2">

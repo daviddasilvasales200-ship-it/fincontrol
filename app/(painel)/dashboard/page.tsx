@@ -43,15 +43,7 @@ type AlertaFinanceiro = {
   icone: string;
 };
 
-type ClaimsPersonalizados = {
-  sub?: string;
-  email?: string;
-  user_metadata?: {
-    nome?: string;
-    avatar?: string;
-    avatar_url?: string;
-  };
-};
+
 
 function formatarMoeda(valor: number) {
   return valor.toLocaleString("pt-BR", {
@@ -312,36 +304,33 @@ function AlertaCard({
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const { data: claimsData, error: claimsError } =
-    await supabase.auth.getClaims();
+ const {
+  data: { user },
+  error: userError,
+} = await supabase.auth.getUser();
 
-  const claims = claimsData?.claims as
-    | ClaimsPersonalizados
-    | undefined;
+if (userError || !user) {
+  redirect("/login");
+}
 
-  const userId = claims?.sub;
-
-  if (claimsError || !userId) {
-    redirect("/login");
-  }
+const userId = user.id;
 
   const nomeCompleto =
-    typeof claims.user_metadata?.nome === "string" &&
-    claims.user_metadata.nome.trim()
-      ? claims.user_metadata.nome.trim()
-      : "Usuário";
+  typeof user.user_metadata?.nome === "string" &&
+  user.user_metadata.nome.trim()
+    ? user.user_metadata.nome.trim()
+    : "Usuário";
 
-  const primeiroNome = nomeCompleto.split(" ")[0];
+const primeiroNome = nomeCompleto.split(" ")[0];
 
-  const email =
-    typeof claims.email === "string" ? claims.email : "";
+const email = user.email ?? "";
 
-  const avatarUrl =
-    typeof claims.user_metadata?.avatar_url === "string"
-      ? claims.user_metadata.avatar_url
-      : typeof claims.user_metadata?.avatar === "string"
-        ? claims.user_metadata.avatar
-        : "";
+const avatarUrl =
+  typeof user.user_metadata?.avatar_url === "string"
+    ? user.user_metadata.avatar_url
+    : typeof user.user_metadata?.avatar === "string"
+      ? user.user_metadata.avatar
+      : "";
 
   const hoje = new Date();
 
@@ -770,55 +759,62 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-screen bg-black text-white">
       <header className="sticky top-0 z-20 border-b border-zinc-800 bg-black/85 px-4 py-4 backdrop-blur-xl md:px-8">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-red-500">
-              Dashboard Premium
-            </p>
+  <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4">
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-red-500">
+        Dashboard Premium
+      </p>
 
-            <p className="mt-1 hidden text-sm text-zinc-500 sm:block">
-              Visão geral das suas finanças
-            </p>
-          </div>
+      <p className="mt-1 hidden text-sm text-zinc-500 sm:block">
+        Visão geral das suas finanças
+      </p>
+    </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="max-w-44 truncate text-sm font-semibold">
-                {nomeCompleto}
-              </p>
+    <div className="flex items-center gap-3">
+      <div className="hidden text-right sm:block">
+        <p className="max-w-44 truncate text-sm font-semibold">
+          {nomeCompleto}
+        </p>
 
-              {email && (
-                <p className="max-w-44 truncate text-xs text-zinc-500">
-                  {email}
-                </p>
-              )}
-            </div>
+        {email && (
+          <p className="max-w-44 truncate text-xs text-zinc-500">
+            {email}
+          </p>
+        )}
+      </div>
 
-            {avatarUrl ? (
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={avatarUrl}
-                  alt={`Avatar de ${nomeCompleto}`}
-                  className="h-11 w-11 rounded-full border-2 border-red-500/70 object-cover ring-4 ring-red-500/10"
-                />
+      {avatarUrl ? (
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarUrl}
+            alt={`Avatar de ${nomeCompleto}`}
+            className="h-11 w-11 rounded-full border-2 border-red-500/70 object-cover ring-4 ring-red-500/10"
+          />
 
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-emerald-500" />
-              </div>
-            ) : (
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-800 font-bold ring-4 ring-red-500/10">
-                {nomeCompleto
-                  .charAt(0)
-                  .toUpperCase()}
-
-                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-emerald-500" />
-              </div>
-            )}
-
-            <LogoutButton />
-          </div>
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-emerald-500" />
         </div>
-      </header>
+      ) : (
+        <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-800 font-bold ring-4 ring-red-500/10">
+          {nomeCompleto.charAt(0).toUpperCase()}
+
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-emerald-500" />
+        </div>
+      )}
+
+      <Link
+        href="/configuracoes"
+        title="Configurações"
+        aria-label="Abrir configurações do perfil"
+        className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-lg text-zinc-400 transition hover:border-red-500 hover:bg-red-500/10 hover:text-red-400"
+      >
+        ⚙
+      </Link>
+
+      <LogoutButton />
+    </div>
+  </div>
+</header>
 
       <section className="mx-auto max-w-[1600px] px-4 py-6 md:px-8 md:py-8">
         {erroMovimentacoes && (

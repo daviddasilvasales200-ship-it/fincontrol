@@ -179,49 +179,7 @@ export default function LayoutComMenu({
             })}
           </nav>
 
-          <div className="border-t border-zinc-800 p-3">
-            <Link
-              href="/configuracoes"
-              aria-current={
-                rotaAtiva("/configuracoes")
-                  ? "page"
-                  : undefined
-              }
-              title={
-                !menuAberto
-                  ? "Configurações"
-                  : undefined
-              }
-              onMouseEnter={() =>
-                anteciparRota("/configuracoes")
-              }
-              onFocus={() =>
-                anteciparRota("/configuracoes")
-              }
-              className={`flex items-center rounded-xl py-3 transition ${
-                menuAberto
-                  ? "gap-3 px-4"
-                  : "justify-center px-2"
-              } ${
-                rotaAtiva("/configuracoes")
-                  ? "bg-red-600 text-white shadow-lg shadow-red-950/30"
-                  : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className="text-lg"
-              >
-                ⚙
-              </span>
-
-              {menuAberto && (
-                <span className="text-sm font-medium">
-                  Configurações
-                </span>
-              )}
-            </Link>
-          </div>
+          
         </aside>
 
         {/* Conteúdo */}

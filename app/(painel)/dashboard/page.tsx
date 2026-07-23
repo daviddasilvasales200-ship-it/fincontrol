@@ -17,7 +17,12 @@ type Movimentacao = {
   created_at: string;
 };
 
-type DestaqueCard = "verde" | "vermelho" | "azul" | "amarelo" | "branco";
+type DestaqueCard =
+  | "verde"
+  | "vermelho"
+  | "azul"
+  | "amarelo"
+  | "branco";
 
 type CardResumoProps = {
   titulo: string;
@@ -148,7 +153,8 @@ function CardResumo({
   const estilos = {
     verde: {
       valor: "text-emerald-400",
-      icone: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20",
+      icone:
+        "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20",
       brilho: "group-hover:border-emerald-500/30",
     },
     vermelho: {
@@ -163,7 +169,8 @@ function CardResumo({
     },
     amarelo: {
       valor: "text-amber-400",
-      icone: "bg-amber-500/10 text-amber-400 ring-amber-500/20",
+      icone:
+        "bg-amber-500/10 text-amber-400 ring-amber-500/20",
       brilho: "group-hover:border-amber-500/30",
     },
     branco: {
@@ -174,10 +181,12 @@ function CardResumo({
   };
 
   const estilo = estilos[destaque];
+
   const semValorAnterior = valorAnterior === 0;
 
   const textoSemComparacao =
-    valorAtual > 0 ? "Novo neste mês" : "Sem movimentação";
+    valorAtual !== 0 ? "Novo neste mês" : "Sem movimentação";
+
   const variacaoPositiva =
     variacao !== null &&
     (inverterVariacao ? variacao <= 0 : variacao >= 0);
@@ -201,43 +210,43 @@ function CardResumo({
           </p>
 
           {semValorAnterior ? (
-  <div className="mt-3 flex flex-wrap items-center gap-2">
-    <span
-      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-        valorAtual > 0
-          ? "bg-blue-500/10 text-blue-400"
-          : "bg-zinc-800 text-zinc-400"
-      }`}
-    >
-      {valorAtual > 0 ? "Novo" : "—"}
-    </span>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                  valorAtual !== 0
+                    ? "bg-blue-500/10 text-blue-400"
+                    : "bg-zinc-800 text-zinc-400"
+                }`}
+              >
+                {valorAtual !== 0 ? "Novo" : "—"}
+              </span>
 
-    <span className="text-xs text-zinc-600">
-      {textoSemComparacao}
-    </span>
-  </div>
-) : variacao !== null ? (
-  <div className="mt-3 flex flex-wrap items-center gap-2">
-    <span
-      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-        variacaoPositiva
-          ? "bg-emerald-500/10 text-emerald-400"
-          : "bg-red-500/10 text-red-400"
-      }`}
-    >
-      {variacao >= 0 ? "↑" : "↓"}{" "}
-      {formatarPercentual(variacao)}%
-    </span>
+              <span className="text-xs text-zinc-600">
+                {textoSemComparacao}
+              </span>
+            </div>
+          ) : variacao !== null ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                  variacaoPositiva
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "bg-red-500/10 text-red-400"
+                }`}
+              >
+                {variacao >= 0 ? "↑" : "↓"}{" "}
+                {formatarPercentual(variacao)}%
+              </span>
 
-    <span className="text-xs text-zinc-600">
-      mês anterior
-    </span>
-  </div>
-) : (
-  <p className="mt-3 text-xs text-zinc-500">
-    {descricao}
-  </p>
-)}
+              <span className="text-xs text-zinc-600">
+                mês anterior
+              </span>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-zinc-500">
+              {descricao}
+            </p>
+          )}
         </div>
 
         <div
@@ -250,10 +259,15 @@ function CardResumo({
   );
 }
 
-function AlertaCard({ alerta }: { alerta: AlertaFinanceiro }) {
+function AlertaCard({
+  alerta,
+}: {
+  alerta: AlertaFinanceiro;
+}) {
   const estilos = {
     sucesso: {
-      container: "border-emerald-500/20 bg-emerald-500/[0.07]",
+      container:
+        "border-emerald-500/20 bg-emerald-500/[0.07]",
       icone: "bg-emerald-500/15 text-emerald-400",
     },
     alerta: {
@@ -301,7 +315,10 @@ export default async function DashboardPage() {
   const { data: claimsData, error: claimsError } =
     await supabase.auth.getClaims();
 
-  const claims = claimsData?.claims as ClaimsPersonalizados | undefined;
+  const claims = claimsData?.claims as
+    | ClaimsPersonalizados
+    | undefined;
+
   const userId = claims?.sub;
 
   if (claimsError || !userId) {
@@ -315,6 +332,7 @@ export default async function DashboardPage() {
       : "Usuário";
 
   const primeiroNome = nomeCompleto.split(" ")[0];
+
   const email =
     typeof claims.email === "string" ? claims.email : "";
 
@@ -328,7 +346,11 @@ export default async function DashboardPage() {
   const hoje = new Date();
 
   const anoAtual = hoje.getFullYear();
-  const mesAtualNumero = String(hoje.getMonth() + 1).padStart(2, "0");
+
+  const mesAtualNumero = String(
+    hoje.getMonth() + 1
+  ).padStart(2, "0");
+
   const mesAtual = `${anoAtual}-${mesAtualNumero}`;
 
   const dataMesAnterior = new Date(
@@ -351,26 +373,29 @@ export default async function DashboardPage() {
     dataInicioGrafico.getMonth() + 1
   ).padStart(2, "0")}-01`;
 
-  const [resultadoMovimentacoes, resultadoOrcamento] = await Promise.all([
-    supabase
-      .from("movimentacoes")
-      .select(
-        "id, tipo, descricao, categoria, valor, data, observacao, created_at"
-      )
-      .eq("user_id", userId)
-      .gte("data", dataInicioConsulta)
-      .order("data", { ascending: false })
-      .order("created_at", { ascending: false }),
+  const [resultadoMovimentacoes, resultadoOrcamento] =
+    await Promise.all([
+      supabase
+        .from("movimentacoes")
+        .select(
+          "id, tipo, descricao, categoria, valor, data, observacao, created_at"
+        )
+        .eq("user_id", userId)
+        .gte("data", dataInicioConsulta)
+        .order("data", { ascending: false })
+        .order("created_at", { ascending: false }),
 
-    supabase
-      .from("orcamentos")
-      .select("limite")
-      .eq("user_id", userId)
-      .eq("ano_mes", mesAtual)
-      .maybeSingle(),
-  ]);
+      supabase
+        .from("orcamentos")
+        .select("limite")
+        .eq("user_id", userId)
+        .eq("ano_mes", mesAtual)
+        .maybeSingle(),
+    ]);
 
-  const erroMovimentacoes = resultadoMovimentacoes.error;
+  const erroMovimentacoes =
+    resultadoMovimentacoes.error;
+
   const erroOrcamento = resultadoOrcamento.error;
 
   if (erroMovimentacoes) {
@@ -381,7 +406,10 @@ export default async function DashboardPage() {
   }
 
   if (erroOrcamento) {
-    console.error("Erro ao buscar orçamento:", erroOrcamento);
+    console.error(
+      "Erro ao buscar orçamento:",
+      erroOrcamento
+    );
   }
 
   const movimentacoes =
@@ -391,16 +419,21 @@ export default async function DashboardPage() {
     resultadoOrcamento.data?.limite ?? 0
   );
 
-  const movimentacoesDoMes = movimentacoes.filter((movimentacao) =>
-    movimentacao.data.startsWith(mesAtual)
+  const movimentacoesDoMes = movimentacoes.filter(
+    (movimentacao) =>
+      movimentacao.data.startsWith(mesAtual)
   );
 
   const movimentacoesMesAnterior = movimentacoes.filter(
-    (movimentacao) => movimentacao.data.startsWith(mesAnterior)
+    (movimentacao) =>
+      movimentacao.data.startsWith(mesAnterior)
   );
 
   const totalReceitasPeriodo = movimentacoes
-    .filter((movimentacao) => movimentacao.tipo === "receita")
+    .filter(
+      (movimentacao) =>
+        movimentacao.tipo === "receita"
+    )
     .reduce(
       (total, movimentacao) =>
         total + Number(movimentacao.valor),
@@ -408,7 +441,10 @@ export default async function DashboardPage() {
     );
 
   const totalDespesasPeriodo = movimentacoes
-    .filter((movimentacao) => movimentacao.tipo === "despesa")
+    .filter(
+      (movimentacao) =>
+        movimentacao.tipo === "despesa"
+    )
     .reduce(
       (total, movimentacao) =>
         total + Number(movimentacao.valor),
@@ -416,7 +452,10 @@ export default async function DashboardPage() {
     );
 
   const receitasDoMes = movimentacoesDoMes
-    .filter((movimentacao) => movimentacao.tipo === "receita")
+    .filter(
+      (movimentacao) =>
+        movimentacao.tipo === "receita"
+    )
     .reduce(
       (total, movimentacao) =>
         total + Number(movimentacao.valor),
@@ -424,7 +463,10 @@ export default async function DashboardPage() {
     );
 
   const despesasDoMes = movimentacoesDoMes
-    .filter((movimentacao) => movimentacao.tipo === "despesa")
+    .filter(
+      (movimentacao) =>
+        movimentacao.tipo === "despesa"
+    )
     .reduce(
       (total, movimentacao) =>
         total + Number(movimentacao.valor),
@@ -432,7 +474,10 @@ export default async function DashboardPage() {
     );
 
   const receitasMesAnterior = movimentacoesMesAnterior
-    .filter((movimentacao) => movimentacao.tipo === "receita")
+    .filter(
+      (movimentacao) =>
+        movimentacao.tipo === "receita"
+    )
     .reduce(
       (total, movimentacao) =>
         total + Number(movimentacao.valor),
@@ -440,22 +485,22 @@ export default async function DashboardPage() {
     );
 
   const despesasMesAnterior = movimentacoesMesAnterior
-    .filter((movimentacao) => movimentacao.tipo === "despesa")
+    .filter(
+      (movimentacao) =>
+        movimentacao.tipo === "despesa"
+    )
     .reduce(
       (total, movimentacao) =>
         total + Number(movimentacao.valor),
       0
     );
 
-  const resultadoMensal = receitasDoMes - despesasDoMes;
+  const resultadoMensal =
+    receitasDoMes - despesasDoMes;
+
   const resultadoMesAnterior =
     receitasMesAnterior - despesasMesAnterior;
 
-  /*
-   * Este saldo representa o período carregado pelo dashboard.
-   * Como a consulta busca os últimos seis meses, o card mostra
-   * o saldo acumulado desse período.
-   */
   const saldoPeriodo =
     totalReceitasPeriodo - totalDespesasPeriodo;
 
@@ -489,7 +534,8 @@ export default async function DashboardPage() {
   let pontuacaoSaude = 50;
 
   if (receitasDoMes > 0) {
-    pontuacaoSaude = 100 - percentualComprometido;
+    pontuacaoSaude =
+      100 - percentualComprometido;
   } else if (despesasDoMes === 0) {
     pontuacaoSaude = 70;
   } else {
@@ -519,7 +565,8 @@ export default async function DashboardPage() {
     obterCorSaudeFinanceira(pontuacaoSaude);
 
   const despesasMesAtual = movimentacoesDoMes.filter(
-    (movimentacao) => movimentacao.tipo === "despesa"
+    (movimentacao) =>
+      movimentacao.tipo === "despesa"
   );
 
   const categoriasAgrupadas = despesasMesAtual.reduce<
@@ -535,7 +582,9 @@ export default async function DashboardPage() {
     return resultado;
   }, {});
 
-  const dadosCategorias = Object.entries(categoriasAgrupadas)
+  const dadosCategorias = Object.entries(
+    categoriasAgrupadas
+  )
     .map(([categoria, valor]) => ({
       categoria,
       valor,
@@ -550,7 +599,9 @@ export default async function DashboardPage() {
     );
 
   const maiorCategoria = dadosCategorias[0] ?? null;
-  const ultimasMovimentacoes = movimentacoes.slice(0, 5);
+
+  const ultimasMovimentacoes =
+    movimentacoes.slice(0, 5);
 
   const nomesMeses = [
     "Jan",
@@ -577,16 +628,18 @@ export default async function DashboardPage() {
       );
 
       const ano = dataReferencia.getFullYear();
-      const mesNumero = dataReferencia.getMonth();
+
+      const mesNumero =
+        dataReferencia.getMonth();
 
       const mesBanco = `${ano}-${String(
         mesNumero + 1
       ).padStart(2, "0")}`;
 
-      const movimentacoesDoPeriodo = movimentacoes.filter(
-        (movimentacao) =>
+      const movimentacoesDoPeriodo =
+        movimentacoes.filter((movimentacao) =>
           movimentacao.data.startsWith(mesBanco)
-      );
+        );
 
       const receitas = movimentacoesDoPeriodo
         .filter(
@@ -665,7 +718,7 @@ export default async function DashboardPage() {
       tipo: "sucesso",
       titulo: "Despesas diminuíram",
       descricao: `Seus gastos caíram ${formatarPercentual(
-        Math.abs(variacaoDespesas)
+        Math.abs(variacaoDespesas ?? 0)
       )}% em comparação ao mês anterior.`,
       icone: "↓",
     });
@@ -677,7 +730,7 @@ export default async function DashboardPage() {
       tipo: "alerta",
       titulo: "Despesas aumentaram",
       descricao: `Seus gastos cresceram ${formatarPercentual(
-        variacaoDespesas
+        variacaoDespesas ?? 0
       )}% em comparação ao mês anterior.`,
       icone: "↑",
     });
@@ -743,6 +796,7 @@ export default async function DashboardPage() {
 
             {avatarUrl ? (
               <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={avatarUrl}
                   alt={`Avatar de ${nomeCompleto}`}
@@ -753,7 +807,9 @@ export default async function DashboardPage() {
               </div>
             ) : (
               <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-800 font-bold ring-4 ring-red-500/10">
-                {nomeCompleto.charAt(0).toUpperCase()}
+                {nomeCompleto
+                  .charAt(0)
+                  .toUpperCase()}
 
                 <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-black bg-emerald-500" />
               </div>
@@ -767,8 +823,9 @@ export default async function DashboardPage() {
       <section className="mx-auto max-w-[1600px] px-4 py-6 md:px-8 md:py-8">
         {erroMovimentacoes && (
           <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
-            Não foi possível carregar todas as movimentações.
-            Atualize a página e tente novamente.
+            Não foi possível carregar todas as
+            movimentações. Atualize a página e tente
+            novamente.
           </div>
         )}
 
@@ -809,7 +866,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Cartão principal */}
         <article className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-zinc-950 via-zinc-950 to-red-950/50 p-6 shadow-2xl shadow-red-950/10 md:p-8">
           <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-600/15 blur-3xl" />
           <div className="absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-red-500/10 blur-3xl" />
@@ -917,50 +973,53 @@ export default async function DashboardPage() {
                   }`}
                 >
                   {resultadoMensal >= 0 ? "+" : "-"}{" "}
-                  {formatarMoeda(Math.abs(resultadoMensal))}
+                  {formatarMoeda(
+                    Math.abs(resultadoMensal)
+                  )}
                 </p>
               </div>
             </div>
           </div>
         </article>
 
-        {/* Indicadores */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <CardResumo
-  titulo="Receitas do mês"
-  valor={formatarMoeda(receitasDoMes)}
-  descricao="Total recebido neste mês"
-  icone="↗"
-  destaque="verde"
-  variacao={variacaoReceitas}
-  valorAtual={receitasDoMes}
-  valorAnterior={receitasMesAnterior}
-/>
+            titulo="Receitas do mês"
+            valor={formatarMoeda(receitasDoMes)}
+            descricao="Total recebido neste mês"
+            icone="↗"
+            destaque="verde"
+            variacao={variacaoReceitas}
+            valorAtual={receitasDoMes}
+            valorAnterior={receitasMesAnterior}
+          />
 
           <CardResumo
-  titulo="Despesas do mês"
-  valor={formatarMoeda(despesasDoMes)}
-  descricao="Total gasto neste mês"
-  icone="↘"
-  destaque="vermelho"
-  variacao={variacaoDespesas}
-  valorAtual={despesasDoMes}
-  valorAnterior={despesasMesAnterior}
-  inverterVariacao
-/>
+            titulo="Despesas do mês"
+            valor={formatarMoeda(despesasDoMes)}
+            descricao="Total gasto neste mês"
+            icone="↘"
+            destaque="vermelho"
+            variacao={variacaoDespesas}
+            valorAtual={despesasDoMes}
+            valorAnterior={despesasMesAnterior}
+            inverterVariacao
+          />
 
           <CardResumo
-  titulo="Resultado mensal"
-  valor={formatarMoeda(resultadoMensal)}
-  descricao="Receitas menos despesas"
-  icone="◈"
-  destaque={
-    resultadoMensal >= 0 ? "azul" : "vermelho"
-  }
-  variacao={variacaoResultado}
-  valorAtual={resultadoMensal}
-  valorAnterior={resultadoMesAnterior}
-/>
+            titulo="Resultado mensal"
+            valor={formatarMoeda(resultadoMensal)}
+            descricao="Receitas menos despesas"
+            icone="◈"
+            destaque={
+              resultadoMensal >= 0
+                ? "azul"
+                : "vermelho"
+            }
+            variacao={variacaoResultado}
+            valorAtual={resultadoMensal}
+            valorAnterior={resultadoMesAnterior}
+          />
 
           <CardResumo
             titulo="Renda comprometida"
@@ -979,7 +1038,6 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* Gráfico e orçamento */}
         <div className="mt-6 grid gap-6 xl:grid-cols-3">
           <article className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-5 md:p-6 xl:col-span-2">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
@@ -1013,7 +1071,6 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* Alertas e assistente */}
         <div className="mt-6 grid gap-6 xl:grid-cols-3">
           <article className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 md:p-6 xl:col-span-2">
             <div className="flex items-start justify-between gap-4">
@@ -1052,7 +1109,9 @@ export default async function DashboardPage() {
                   </strong>
                   , com{" "}
                   <strong className="text-red-400">
-                    {formatarMoeda(maiorCategoria.valor)}
+                    {formatarMoeda(
+                      maiorCategoria.valor
+                    )}
                   </strong>
                   .
                 </p>
@@ -1070,17 +1129,18 @@ export default async function DashboardPage() {
             </p>
 
             <div className="mt-5 space-y-3">
-              {alertasVisiveis.map((alerta, indice) => (
-                <AlertaCard
-                  key={`${alerta.titulo}-${indice}`}
-                  alerta={alerta}
-                />
-              ))}
+              {alertasVisiveis.map(
+                (alerta, indice) => (
+                  <AlertaCard
+                    key={`${alerta.titulo}-${indice}`}
+                    alerta={alerta}
+                  />
+                )
+              )}
             </div>
           </article>
         </div>
 
-        {/* Movimentações e categorias */}
         <div className="mt-6 grid gap-6 xl:grid-cols-3">
           <article className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 md:p-6 xl:col-span-2">
             <div className="flex items-center justify-between gap-4">
@@ -1094,7 +1154,8 @@ export default async function DashboardPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-zinc-500">
-                  Receitas e despesas cadastradas recentemente
+                  Receitas e despesas cadastradas
+                  recentemente
                 </p>
               </div>
 
@@ -1124,55 +1185,66 @@ export default async function DashboardPage() {
               </div>
             ) : (
               <div className="mt-6 space-y-3">
-                {ultimasMovimentacoes.map((movimentacao) => {
-                  const receita =
-                    movimentacao.tipo === "receita";
+                {ultimasMovimentacoes.map(
+                  (movimentacao) => {
+                    const receita =
+                      movimentacao.tipo === "receita";
 
-                  return (
-                    <div
-                      key={movimentacao.id}
-                      className="group flex flex-col justify-between gap-3 rounded-2xl border border-zinc-800 bg-black/50 p-4 transition hover:border-zinc-700 hover:bg-black sm:flex-row sm:items-center"
-                    >
-                      <div className="flex min-w-0 items-center gap-4">
-                        <div
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                    return (
+                      <div
+                        key={movimentacao.id}
+                        className="group flex flex-col justify-between gap-3 rounded-2xl border border-zinc-800 bg-black/50 p-4 transition hover:border-zinc-700 hover:bg-black sm:flex-row sm:items-center"
+                      >
+                        <div className="flex min-w-0 items-center gap-4">
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                              receita
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : "bg-red-500/10 text-red-400"
+                            }`}
+                          >
+                            {receita ? "↗" : "↘"}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">
+                              {
+                                movimentacao.descricao
+                              }
+                            </p>
+
+                            <p className="mt-1 truncate text-sm text-zinc-500">
+                              {
+                                movimentacao.categoria
+                              }{" "}
+                              ·{" "}
+                              {new Date(
+                                `${movimentacao.data}T12:00:00`
+                              ).toLocaleDateString(
+                                "pt-BR"
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <p
+                          className={`shrink-0 font-bold ${
                             receita
-                              ? "bg-emerald-500/10 text-emerald-400"
-                              : "bg-red-500/10 text-red-400"
+                              ? "text-emerald-400"
+                              : "text-red-400"
                           }`}
                         >
-                          {receita ? "↗" : "↘"}
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="truncate font-semibold">
-                            {movimentacao.descricao}
-                          </p>
-
-                          <p className="mt-1 truncate text-sm text-zinc-500">
-                            {movimentacao.categoria} ·{" "}
-                            {new Date(
-                              `${movimentacao.data}T12:00:00`
-                            ).toLocaleDateString("pt-BR")}
-                          </p>
-                        </div>
+                          {receita ? "+" : "-"}{" "}
+                          {formatarMoeda(
+                            Number(
+                              movimentacao.valor
+                            )
+                          )}
+                        </p>
                       </div>
-
-                      <p
-                        className={`shrink-0 font-bold ${
-                          receita
-                            ? "text-emerald-400"
-                            : "text-red-400"
-                        }`}
-                      >
-                        {receita ? "+" : "-"}{" "}
-                        {formatarMoeda(
-                          Number(movimentacao.valor)
-                        )}
-                      </p>
-                    </div>
-                  );
-                })}
+                    );
+                  }
+                )}
               </div>
             )}
           </article>
@@ -1190,26 +1262,25 @@ export default async function DashboardPage() {
               Despesas registradas neste mês
             </p>
 
-            <GraficoCategorias dados={dadosCategorias} />
+            <GraficoCategorias
+              dados={dadosCategorias}
+            />
           </article>
         </div>
 
-        {/* Ações rápidas */}
         <article className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-5 md:p-6">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-500">
-                Atalhos
-              </p>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-500">
+              Atalhos
+            </p>
 
-              <h2 className="mt-2 text-xl font-semibold">
-                Ações rápidas
-              </h2>
+            <h2 className="mt-2 text-xl font-semibold">
+              Ações rápidas
+            </h2>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                Acesse as principais áreas do FinControl
-              </p>
-            </div>
+            <p className="mt-1 text-sm text-zinc-500">
+              Acesse as principais áreas do FinControl
+            </p>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

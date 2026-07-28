@@ -41,11 +41,6 @@ const itensMenu: ItemMenu[] = [
     href: "/assinaturas",
   },
   {
-    nome: "Investimentos",
-    icone: "▥",
-    href: "/investimentos",
-  },
-  {
     nome: "Apostas",
     icone: "◆",
     href: "/apostas",

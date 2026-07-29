@@ -179,6 +179,7 @@ export default function PaginaDicas() {
             `
               id,
               user_id,
+              fixture_id,
               esporte,
               competicao,
               time_casa,
@@ -195,6 +196,11 @@ export default function PaginaDicas() {
               status,
               resultado,
               lucro_prejuizo,
+              placar_final,
+              total_gols,
+              total_escanteios,
+              total_cartoes,
+              resultado_verificado_em,
               destaque,
               publicada_em,
               atualizada_em,
@@ -238,6 +244,16 @@ export default function PaginaDicas() {
                     dica.user_id
                   )
                 : null,
+
+            fixture_id:
+              dica.fixture_id ===
+                null ||
+              dica.fixture_id ===
+                undefined
+                ? null
+                : Number(
+                    dica.fixture_id
+                  ),
 
             esporte:
               String(
@@ -321,8 +337,53 @@ export default function PaginaDicas() {
 
             lucro_prejuizo:
               Number(
-                dica.lucro_prejuizo
+                dica.lucro_prejuizo ??
+                  0
               ),
+
+            placar_final:
+              dica.placar_final
+                ? String(
+                    dica.placar_final
+                  )
+                : null,
+
+            total_gols:
+              dica.total_gols ===
+                null ||
+              dica.total_gols ===
+                undefined
+                ? null
+                : Number(
+                    dica.total_gols
+                  ),
+
+            total_escanteios:
+              dica.total_escanteios ===
+                null ||
+              dica.total_escanteios ===
+                undefined
+                ? null
+                : Number(
+                    dica.total_escanteios
+                  ),
+
+            total_cartoes:
+              dica.total_cartoes ===
+                null ||
+              dica.total_cartoes ===
+                undefined
+                ? null
+                : Number(
+                    dica.total_cartoes
+                  ),
+
+            resultado_verificado_em:
+              dica.resultado_verificado_em
+                ? String(
+                    dica.resultado_verificado_em
+                  )
+                : null,
 
             destaque:
               Boolean(
@@ -1149,7 +1210,7 @@ export default function PaginaDicas() {
           />
         </div>
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <CardResumoDica
             titulo="Total de dicas"
             quantidade={resumo.total}
@@ -1211,6 +1272,16 @@ export default function PaginaDicas() {
                   ? "atencao"
                   : "neutro"
             }
+          />
+
+          <CardResumoDica
+            titulo="Lucro / prejuízo"
+            unidades={
+              resumo.lucroPrejuizo
+            }
+            tipoValor="unidades"
+            descricao="Resultado acumulado das dicas finalizadas"
+            icone="↕"
           />
         </section>
 

@@ -18,6 +18,8 @@ export type DicaAposta = {
   id: number;
   user_id: string | null;
 
+  fixture_id: number | null;
+
   esporte: string;
   competicao: string;
 
@@ -43,6 +45,16 @@ export type DicaAposta = {
 
   lucro_prejuizo: number;
 
+  placar_final: string | null;
+
+  total_gols: number | null;
+  total_escanteios: number | null;
+  total_cartoes: number | null;
+
+  resultado_verificado_em:
+    | string
+    | null;
+
   destaque: boolean;
 
   publicada_em: string;
@@ -64,7 +76,10 @@ export type ResumoDicas = {
   altaConfianca: number;
   ganhas: number;
   perdidas: number;
+  anuladas: number;
+  pendentes: number;
   taxaAcerto: number;
+  lucroPrejuizo: number;
 };
 
 export const MERCADOS_DICAS = [
@@ -72,10 +87,10 @@ export const MERCADOS_DICAS = [
   "Dupla possibilidade",
   "Empate anula aposta",
   "Total de gols",
-  "Ambas marcam",
+  "Ambas as equipes marcam",
   "Handicap",
-  "Escanteios",
-  "Cartões",
+  "Total de escanteios",
+  "Total de cartões",
   "Finalizações",
   "Outros",
 ] as const;
@@ -154,6 +169,16 @@ export function calcularResumoDicas(
       dica.resultado === "perdida"
   ).length;
 
+  const anuladas = dicas.filter(
+    (dica) =>
+      dica.resultado === "anulada"
+  ).length;
+
+  const pendentes = dicas.filter(
+    (dica) =>
+      dica.resultado === "pendente"
+  ).length;
+
   const finalizadas =
     ganhas + perdidas;
 
@@ -161,6 +186,19 @@ export function calcularResumoDicas(
     finalizadas > 0
       ? (ganhas / finalizadas) * 100
       : 0;
+
+  const lucroPrejuizo =
+    dicas.reduce(
+      (
+        total,
+        dica
+      ) =>
+        total +
+        Number(
+          dica.lucro_prejuizo ?? 0
+        ),
+      0
+    );
 
   return {
     total: dicas.length,
@@ -178,7 +216,15 @@ export function calcularResumoDicas(
 
     ganhas,
     perdidas,
+    anuladas,
+    pendentes,
+
     taxaAcerto,
+
+    lucroPrejuizo:
+      Number(
+        lucroPrejuizo.toFixed(2)
+      ),
   };
 }
 
@@ -189,7 +235,8 @@ export function normalizarHorarioDica(
     return null;
   }
 
-  const partes = horario.split(":");
+  const partes =
+    horario.split(":");
 
   if (partes.length < 2) {
     return horario;
@@ -205,4 +252,78 @@ export function criarTextoConfronto(
   >
 ) {
   return `${dica.time_casa} x ${dica.time_visitante}`;
+}
+
+export function formatarLucroPrejuizoDica(
+  valor:
+    | number
+    | null
+    | undefined
+) {
+  const numero =
+    Number(valor ?? 0);
+
+  if (numero > 0) {
+    return `+${numero
+      .toFixed(2)
+      .replace(".", ",")} un`;
+  }
+
+  if (numero < 0) {
+    return `${numero
+      .toFixed(2)
+      .replace(".", ",")} un`;
+  }
+
+  return "0,00 un";
+}
+
+export function formatarDataHoraDica(
+  valor:
+    | string
+    | null
+    | undefined
+) {
+  if (!valor) {
+    return null;
+  }
+
+  const data =
+    new Date(valor);
+
+  if (
+    Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      timeZone:
+        "America/Sao_Paulo",
+
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  ).format(data);
+}
+
+export function dicaPossuiResultadoDetalhado(
+  dica: DicaAposta
+) {
+  return (
+    dica.resultado !==
+      "pendente" ||
+    dica.placar_final !==
+      null ||
+    dica.resultado_verificado_em !==
+      null
+  );
 }

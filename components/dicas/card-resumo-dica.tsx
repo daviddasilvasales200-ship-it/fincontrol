@@ -4,24 +4,70 @@ type DestaqueCardResumoDica =
   | "negativo"
   | "atencao";
 
+type TipoValorCardResumoDica =
+  | "quantidade"
+  | "percentual"
+  | "unidades";
+
 type CardResumoDicaProps = {
   titulo: string;
   descricao: string;
   icone?: string;
+
   quantidade?: number;
   percentual?: number;
+  unidades?: number;
+
+  tipoValor?: TipoValorCardResumoDica;
+
   destaque?: DestaqueCardResumoDica;
 };
 
-function formatarPercentual(valor: number) {
-  const valorSeguro = Number.isFinite(valor)
-    ? valor
-    : 0;
+function formatarPercentual(
+  valor: number
+) {
+  const valorSeguro =
+    Number.isFinite(valor)
+      ? valor
+      : 0;
 
-  return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(valorSeguro);
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }
+  ).format(valorSeguro);
+}
+
+function formatarUnidades(
+  valor: number
+) {
+  const valorSeguro =
+    Number.isFinite(valor)
+      ? valor
+      : 0;
+
+  const numeroFormatado =
+    new Intl.NumberFormat(
+      "pt-BR",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    ).format(
+      Math.abs(valorSeguro)
+    );
+
+  if (valorSeguro > 0) {
+    return `+${numeroFormatado} un`;
+  }
+
+  if (valorSeguro < 0) {
+    return `-${numeroFormatado} un`;
+  }
+
+  return "0,00 un";
 }
 
 function obterClassesDestaque(
@@ -31,10 +77,15 @@ function obterClassesDestaque(
     return {
       borda:
         "border-emerald-900/70 hover:border-emerald-800",
+
       fundoIcone:
         "border-emerald-900/70 bg-emerald-950/50",
-      textoIcone: "text-emerald-400",
-      textoValor: "text-emerald-400",
+
+      textoIcone:
+        "text-emerald-400",
+
+      textoValor:
+        "text-emerald-400",
     };
   }
 
@@ -42,10 +93,15 @@ function obterClassesDestaque(
     return {
       borda:
         "border-red-900/70 hover:border-red-800",
+
       fundoIcone:
         "border-red-900/70 bg-red-950/50",
-      textoIcone: "text-red-400",
-      textoValor: "text-red-400",
+
+      textoIcone:
+        "text-red-400",
+
+      textoValor:
+        "text-red-400",
     };
   }
 
@@ -53,41 +109,142 @@ function obterClassesDestaque(
     return {
       borda:
         "border-amber-900/70 hover:border-amber-800",
+
       fundoIcone:
         "border-amber-900/70 bg-amber-950/50",
-      textoIcone: "text-amber-400",
-      textoValor: "text-amber-400",
+
+      textoIcone:
+        "text-amber-400",
+
+      textoValor:
+        "text-amber-400",
     };
   }
 
   return {
     borda:
       "border-zinc-800 hover:border-zinc-700",
+
     fundoIcone:
       "border-zinc-800 bg-zinc-900",
-    textoIcone: "text-zinc-400",
-    textoValor: "text-white",
+
+    textoIcone:
+      "text-zinc-400",
+
+    textoValor:
+      "text-white",
   };
+}
+
+function obterDestaqueAutomatico(
+  destaque:
+    DestaqueCardResumoDica,
+
+  tipoValor:
+    TipoValorCardResumoDica,
+
+  unidades: number
+): DestaqueCardResumoDica {
+  if (
+    tipoValor !== "unidades" ||
+    destaque !== "neutro"
+  ) {
+    return destaque;
+  }
+
+  if (unidades > 0) {
+    return "positivo";
+  }
+
+  if (unidades < 0) {
+    return "negativo";
+  }
+
+  return "neutro";
 }
 
 export default function CardResumoDica({
   titulo,
   descricao,
   icone = "◆",
+
   quantidade,
   percentual,
+  unidades,
+
+  tipoValor,
+
   destaque = "neutro",
 }: CardResumoDicaProps) {
-  const classes =
-    obterClassesDestaque(destaque);
+  const tipoValorCalculado:
+    TipoValorCardResumoDica =
+    tipoValor ??
+    (
+      typeof unidades ===
+      "number"
+        ? "unidades"
+        : typeof percentual ===
+            "number"
+          ? "percentual"
+          : "quantidade"
+    );
 
-  const possuiPercentual =
-    typeof percentual === "number";
-
-  const valorPrincipal =
-    typeof quantidade === "number"
+  const quantidadeSegura =
+    typeof quantidade ===
+      "number" &&
+    Number.isFinite(quantidade)
       ? quantidade
       : 0;
+
+  const percentualSeguro =
+    typeof percentual ===
+      "number" &&
+    Number.isFinite(percentual)
+      ? percentual
+      : 0;
+
+  const unidadesSeguras =
+    typeof unidades ===
+      "number" &&
+    Number.isFinite(unidades)
+      ? unidades
+      : 0;
+
+  const destaqueCalculado =
+    obterDestaqueAutomatico(
+      destaque,
+      tipoValorCalculado,
+      unidadesSeguras
+    );
+
+  const classes =
+    obterClassesDestaque(
+      destaqueCalculado
+    );
+
+  let valorPrincipal:
+    string | number;
+
+  if (
+    tipoValorCalculado ===
+    "percentual"
+  ) {
+    valorPrincipal =
+      `${formatarPercentual(
+        percentualSeguro
+      )}%`;
+  } else if (
+    tipoValorCalculado ===
+    "unidades"
+  ) {
+    valorPrincipal =
+      formatarUnidades(
+        unidadesSeguras
+      );
+  } else {
+    valorPrincipal =
+      quantidadeSegura;
+  }
 
   return (
     <article
@@ -102,11 +259,7 @@ export default function CardResumoDica({
           <p
             className={`mt-3 text-3xl font-bold tracking-tight ${classes.textoValor}`}
           >
-            {possuiPercentual
-              ? `${formatarPercentual(
-                  percentual
-                )}%`
-              : valorPrincipal}
+            {valorPrincipal}
           </p>
         </div>
 

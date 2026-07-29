@@ -4,6 +4,9 @@ import { useState } from "react";
 
 import {
   criarTextoConfronto,
+  dicaPossuiResultadoDetalhado,
+  formatarDataHoraDica,
+  formatarLucroPrejuizoDica,
   formatarNivelConfianca,
   formatarResultadoDica,
   formatarStatusDica,
@@ -21,15 +24,17 @@ type ListaDicasProps = {
   dicas: DicaAposta[];
   carregando?: boolean;
   processandoId?: number | null;
+
   onExcluir: (
     dica: DicaAposta
   ) => Promise<void> | void;
 };
 
-function formatarData(data: string) {
-  const [ano, mes, dia] = data
-    .split("-")
-    .map(Number);
+function formatarData(
+  data: string
+) {
+  const [ano, mes, dia] =
+    data.split("-").map(Number);
 
   if (!ano || !mes || !dia) {
     return data;
@@ -38,11 +43,17 @@ function formatarData(data: string) {
   return new Intl.DateTimeFormat(
     "pt-BR"
   ).format(
-    new Date(ano, mes - 1, dia)
+    new Date(
+      ano,
+      mes - 1,
+      dia
+    )
   );
 }
 
-function formatarOdd(valor: number) {
+function formatarOdd(
+  valor: number
+) {
   const valorSeguro =
     Number.isFinite(valor)
       ? valor
@@ -79,6 +90,28 @@ function formatarPercentual(
   return `${valorFormatado}%`;
 }
 
+function formatarQuantidade(
+  valor:
+    | number
+    | null
+    | undefined
+) {
+  if (
+    valor === null ||
+    valor === undefined ||
+    !Number.isFinite(valor)
+  ) {
+    return "Não informada";
+  }
+
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      maximumFractionDigits: 0,
+    }
+  ).format(valor);
+}
+
 function obterClassesConfianca(
   nivel: NivelConfiancaDica
 ) {
@@ -86,8 +119,12 @@ function obterClassesConfianca(
     return {
       selo:
         "border-emerald-900/70 bg-emerald-950/40 text-emerald-400",
-      barra: "bg-emerald-500",
-      texto: "text-emerald-400",
+
+      barra:
+        "bg-emerald-500",
+
+      texto:
+        "text-emerald-400",
     };
   }
 
@@ -95,16 +132,24 @@ function obterClassesConfianca(
     return {
       selo:
         "border-amber-900/70 bg-amber-950/40 text-amber-400",
-      barra: "bg-amber-500",
-      texto: "text-amber-400",
+
+      barra:
+        "bg-amber-500",
+
+      texto:
+        "text-amber-400",
     };
   }
 
   return {
     selo:
       "border-zinc-700 bg-zinc-900 text-zinc-400",
-    barra: "bg-zinc-500",
-    texto: "text-zinc-400",
+
+    barra:
+      "bg-zinc-500",
+
+    texto:
+      "text-zinc-400",
   };
 }
 
@@ -138,6 +183,72 @@ function obterClassesResultado(
   }
 
   return "text-amber-400";
+}
+
+function obterClassesPainelResultado(
+  resultado: ResultadoDica
+) {
+  if (resultado === "ganha") {
+    return {
+      painel:
+        "border-emerald-900/60 bg-emerald-950/20",
+
+      titulo:
+        "text-emerald-400",
+
+      selo:
+        "border-emerald-900/70 bg-emerald-950/50 text-emerald-300",
+
+      lucro:
+        "text-emerald-400",
+    };
+  }
+
+  if (resultado === "perdida") {
+    return {
+      painel:
+        "border-red-900/60 bg-red-950/20",
+
+      titulo:
+        "text-red-400",
+
+      selo:
+        "border-red-900/70 bg-red-950/50 text-red-300",
+
+      lucro:
+        "text-red-400",
+    };
+  }
+
+  if (resultado === "anulada") {
+    return {
+      painel:
+        "border-zinc-700 bg-zinc-900/50",
+
+      titulo:
+        "text-zinc-300",
+
+      selo:
+        "border-zinc-700 bg-zinc-900 text-zinc-300",
+
+      lucro:
+        "text-zinc-300",
+    };
+  }
+
+  return {
+    painel:
+      "border-amber-900/50 bg-amber-950/20",
+
+    titulo:
+      "text-amber-400",
+
+    selo:
+      "border-amber-900/70 bg-amber-950/50 text-amber-300",
+
+    lucro:
+      "text-amber-400",
+  };
 }
 
 function EstadoCarregando() {
@@ -192,6 +303,156 @@ function EstadoVazio() {
   );
 }
 
+function PainelResultadoDica({
+  dica,
+}: {
+  dica: DicaAposta;
+}) {
+  const classes =
+    obterClassesPainelResultado(
+      dica.resultado
+    );
+
+  const verificadoEm =
+    formatarDataHoraDica(
+      dica.resultado_verificado_em
+    );
+
+  const possuiEscanteios =
+    dica.total_escanteios !==
+      null &&
+    dica.total_escanteios !==
+      undefined;
+
+  const possuiCartoes =
+    dica.total_cartoes !==
+      null &&
+    dica.total_cartoes !==
+      undefined;
+
+  const possuiGols =
+    dica.total_gols !==
+      null &&
+    dica.total_gols !==
+      undefined;
+
+  const possuiPlacar =
+    Boolean(
+      dica.placar_final
+    );
+
+  return (
+    <section
+      className={`mt-5 rounded-2xl border p-5 ${classes.painel}`}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p
+            className={`text-xs font-semibold uppercase tracking-[0.16em] ${classes.titulo}`}
+          >
+            Resultado verificado
+          </p>
+
+          <p className="mt-2 text-sm text-zinc-400">
+            Dados oficiais da partida utilizados
+            para encerrar esta dica.
+          </p>
+        </div>
+
+        <span
+          className={`inline-flex w-fit rounded-full border px-3 py-1.5 text-sm font-bold ${classes.selo}`}
+        >
+          {formatarResultadoDica(
+            dica.resultado
+          )}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            Placar final
+          </p>
+
+          <p className="mt-2 text-lg font-bold text-white">
+            {possuiPlacar
+              ? dica.placar_final
+              : "Não informado"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            Gols
+          </p>
+
+          <p className="mt-2 text-lg font-bold text-white">
+            {possuiGols
+              ? formatarQuantidade(
+                  dica.total_gols
+                )
+              : "Não informado"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            Escanteios
+          </p>
+
+          <p className="mt-2 text-lg font-bold text-white">
+            {possuiEscanteios
+              ? formatarQuantidade(
+                  dica.total_escanteios
+                )
+              : "Não informado"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            Cartões
+          </p>
+
+          <p className="mt-2 text-lg font-bold text-white">
+            {possuiCartoes
+              ? formatarQuantidade(
+                  dica.total_cartoes
+                )
+              : "Não informado"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            Lucro / prejuízo
+          </p>
+
+          <p
+            className={`mt-2 text-lg font-bold ${classes.lucro}`}
+          >
+            {formatarLucroPrejuizoDica(
+              dica.lucro_prejuizo
+            )}
+          </p>
+        </div>
+      </div>
+
+      {verificadoEm && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+          <span>
+            Verificado em:
+          </span>
+
+          <span className="font-semibold text-zinc-300">
+            {verificadoEm}
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function ListaDicas({
   dicas,
   carregando = false,
@@ -201,7 +462,9 @@ export default function ListaDicas({
   const [
     confirmandoId,
     setConfirmandoId,
-  ] = useState<number | null>(null);
+  ] = useState<number | null>(
+    null
+  );
 
   if (carregando) {
     return <EstadoCarregando />;
@@ -214,7 +477,9 @@ export default function ListaDicas({
   function solicitarExclusao(
     dica: DicaAposta
   ) {
-    setConfirmandoId(dica.id);
+    setConfirmandoId(
+      dica.id
+    );
   }
 
   async function confirmarExclusao(
@@ -246,10 +511,17 @@ export default function ListaDicas({
           0;
 
         const processando =
-          processandoId === dica.id;
+          processandoId ===
+          dica.id;
 
         const confirmando =
-          confirmandoId === dica.id;
+          confirmandoId ===
+          dica.id;
+
+        const possuiResultadoDetalhado =
+          dicaPossuiResultadoDetalhado(
+            dica
+          );
 
         return (
           <article
@@ -287,6 +559,19 @@ export default function ListaDicas({
                       dica.status
                     )}
                   </span>
+
+                  {dica.resultado !==
+                    "pendente" && (
+                    <span
+                      className={`inline-flex rounded-full border border-zinc-800 bg-black px-3 py-1 text-xs font-semibold ${obterClassesResultado(
+                        dica.resultado
+                      )}`}
+                    >
+                      {formatarResultadoDica(
+                        dica.resultado
+                      )}
+                    </span>
+                  )}
                 </div>
 
                 <p className="mt-4 text-sm font-semibold text-red-400">
@@ -307,10 +592,14 @@ export default function ListaDicas({
                   </span>
 
                   {horario && (
-                    <span>{horario}</span>
+                    <span>
+                      {horario}
+                    </span>
                   )}
 
-                  <span>{dica.esporte}</span>
+                  <span>
+                    {dica.esporte}
+                  </span>
 
                   {dica.fonte_dados && (
                     <span>
@@ -359,6 +648,12 @@ export default function ListaDicas({
                 Mercado: {dica.mercado}
               </p>
             </div>
+
+            {possuiResultadoDetalhado && (
+              <PainelResultadoDica
+                dica={dica}
+              />
+            )}
 
             {dica.probabilidade_estimada !==
               null && (
@@ -456,8 +751,14 @@ export default function ListaDicas({
                   {new Intl.DateTimeFormat(
                     "pt-BR",
                     {
-                      dateStyle: "short",
-                      timeStyle: "short",
+                      dateStyle:
+                        "short",
+
+                      timeStyle:
+                        "short",
+
+                      timeZone:
+                        "America/Sao_Paulo",
                     }
                   ).format(
                     new Date(
@@ -484,7 +785,9 @@ export default function ListaDicas({
                         dica
                       )
                     }
-                    disabled={processando}
+                    disabled={
+                      processando
+                    }
                     className="rounded-xl border border-red-900/70 px-4 py-2.5 text-sm font-semibold text-red-500 transition hover:border-red-600 hover:bg-red-950/40 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Excluir dica

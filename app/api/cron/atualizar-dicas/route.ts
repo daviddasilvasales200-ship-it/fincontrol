@@ -5,6 +5,10 @@ import {
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const runtime = "nodejs";
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+
 type ErrosApi =
   Record<string, unknown>;
 
@@ -321,7 +325,9 @@ function requisicaoAutorizada(
   request: NextRequest
 ) {
   const segredo =
-    process.env.CRON_SECRET?.trim();
+    process.env
+      .CRON_SECRET
+      ?.trim();
 
   if (!segredo) {
     console.error(
@@ -363,7 +369,9 @@ function normalizarTexto(
       ""
     )
     .trim()
-    .toLocaleLowerCase("pt-BR")
+    .toLocaleLowerCase(
+      "pt-BR"
+    )
     .replace(/\s+/g, " ");
 }
 
@@ -377,12 +385,13 @@ function converterPercentual(
     return 0;
   }
 
-  const numero = Number(
-    valor
-      .replace("%", "")
-      .replace(",", ".")
-      .trim()
-  );
+  const numero =
+    Number(
+      valor
+        .replace("%", "")
+        .replace(",", ".")
+        .trim()
+    );
 
   return Number.isFinite(numero)
     ? numero
@@ -392,11 +401,12 @@ function converterPercentual(
 function converterOdd(
   valor: string
 ) {
-  const numero = Number(
-    valor
-      .replace(",", ".")
-      .trim()
-  );
+  const numero =
+    Number(
+      valor
+        .replace(",", ".")
+        .trim()
+    );
 
   if (
     !Number.isFinite(numero) ||
@@ -428,15 +438,18 @@ function extrairNumero(
   const correspondencia =
     String(valor)
       .replace(",", ".")
-      .match(/\d+(?:\.\d+)?/);
+      .match(
+        /\d+(?:\.\d+)?/
+      );
 
   if (!correspondencia) {
     return null;
   }
 
-  const numero = Number(
-    correspondencia[0]
-  );
+  const numero =
+    Number(
+      correspondencia[0]
+    );
 
   return Number.isFinite(numero)
     ? numero
@@ -446,10 +459,12 @@ function extrairNumero(
 function obterDataBrasilia(
   adicionarDias = 0
 ) {
-  const data = new Date();
+  const data =
+    new Date();
 
   data.setDate(
-    data.getDate() + adicionarDias
+    data.getDate() +
+      adicionarDias
   );
 
   return new Intl.DateTimeFormat(
@@ -468,7 +483,8 @@ function obterDataBrasilia(
 function formatarDataHora(
   dataIso: string
 ) {
-  const data = new Date(dataIso);
+  const data =
+    new Date(dataIso);
 
   const dataJogo =
     new Intl.DateTimeFormat(
@@ -505,11 +521,15 @@ function formatarDataHora(
 function classificarConfianca(
   probabilidade: number
 ): NivelConfianca {
-  if (probabilidade >= 70) {
+  if (
+    probabilidade >= 70
+  ) {
     return "alta";
   }
 
-  if (probabilidade >= 60) {
+  if (
+    probabilidade >= 60
+  ) {
     return "media";
   }
 
@@ -520,7 +540,9 @@ function calcularProbabilidadeImplicita(
   odd: number
 ) {
   const percentual =
-    (1 / odd) * 100 * 0.94;
+    (1 / odd) *
+    100 *
+    0.94;
 
   return Number(
     Math.min(
@@ -537,19 +559,20 @@ async function consultarApi<T>(
   caminho: string,
   chaveApi: string
 ): Promise<T> {
-  const resposta = await fetch(
-    `${URL_API}${caminho}`,
-    {
-      method: "GET",
+  const resposta =
+    await fetch(
+      `${URL_API}${caminho}`,
+      {
+        method: "GET",
 
-      headers: {
-        "x-apisports-key":
-          chaveApi,
-      },
+        headers: {
+          "x-apisports-key":
+            chaveApi,
+        },
 
-      cache: "no-store",
-    }
-  );
+        cache: "no-store",
+      }
+    );
 
   const texto =
     await resposta.text();
@@ -559,8 +582,10 @@ async function consultarApi<T>(
       "Erro HTTP da API-Football:",
       {
         caminho,
-        status: resposta.status,
-        resposta: texto,
+        status:
+          resposta.status,
+        resposta:
+          texto,
       }
     );
 
@@ -570,13 +595,16 @@ async function consultarApi<T>(
   }
 
   try {
-    return JSON.parse(texto) as T;
+    return JSON.parse(
+      texto
+    ) as T;
   } catch {
     console.error(
       "Resposta inválida da API-Football:",
       {
         caminho,
-        resposta: texto,
+        resposta:
+          texto,
       }
     );
 
@@ -590,7 +618,9 @@ function identificarCategoriaMercado(
   nomeMercado: string
 ): CategoriaMercado | null {
   const nome =
-    normalizarTexto(nomeMercado);
+    normalizarTexto(
+      nomeMercado
+    );
 
   if (
     nome.includes(
@@ -604,8 +634,10 @@ function identificarCategoriaMercado(
   }
 
   if (
-    nome === "match winner" ||
-    nome === "match result" ||
+    nome ===
+      "match winner" ||
+    nome ===
+      "match result" ||
     nome === "1x2" ||
     nome.includes(
       "resultado da partida"
@@ -629,11 +661,19 @@ function identificarCategoriaMercado(
   }
 
   if (
-    nome.includes("corner") &&
+    nome.includes(
+      "corner"
+    ) &&
     (
-      nome.includes("over") ||
-      nome.includes("under") ||
-      nome.includes("total")
+      nome.includes(
+        "over"
+      ) ||
+      nome.includes(
+        "under"
+      ) ||
+      nome.includes(
+        "total"
+      )
     )
   ) {
     return "escanteios";
@@ -641,22 +681,38 @@ function identificarCategoriaMercado(
 
   if (
     (
-      nome.includes("card") ||
-      nome.includes("booking")
+      nome.includes(
+        "card"
+      ) ||
+      nome.includes(
+        "booking"
+      )
     ) &&
     (
-      nome.includes("over") ||
-      nome.includes("under") ||
-      nome.includes("total")
+      nome.includes(
+        "over"
+      ) ||
+      nome.includes(
+        "under"
+      ) ||
+      nome.includes(
+        "total"
+      )
     )
   ) {
     return "cartoes";
   }
 
   if (
-    !nome.includes("corner") &&
-    !nome.includes("card") &&
-    !nome.includes("booking") &&
+    !nome.includes(
+      "corner"
+    ) &&
+    !nome.includes(
+      "card"
+    ) &&
+    !nome.includes(
+      "booking"
+    ) &&
     (
       nome.includes(
         "goals over/under"
@@ -677,14 +733,18 @@ function identificarCategoriaMercado(
 }
 
 function linhaMercadoPermitida(
-  categoria: CategoriaMercado,
+  categoria:
+    CategoriaMercado,
   selecao: string
 ) {
   const numero =
-    extrairNumero(selecao);
+    extrairNumero(
+      selecao
+    );
 
   if (
-    categoria === "escanteios"
+    categoria ===
+      "escanteios"
   ) {
     return (
       numero !== null &&
@@ -694,7 +754,8 @@ function linhaMercadoPermitida(
   }
 
   if (
-    categoria === "cartoes"
+    categoria ===
+      "cartoes"
   ) {
     return (
       numero !== null &&
@@ -703,7 +764,10 @@ function linhaMercadoPermitida(
     );
   }
 
-  if (categoria === "gols") {
+  if (
+    categoria ===
+      "gols"
+  ) {
     return (
       numero !== null &&
       numero >= 1.5 &&
@@ -715,7 +779,8 @@ function linhaMercadoPermitida(
 }
 
 function formatarSelecaoMercado(
-  categoria: CategoriaMercado,
+  categoria:
+    CategoriaMercado,
   selecaoOriginal: string
 ) {
   const normalizado =
@@ -729,35 +794,23 @@ function formatarSelecaoMercado(
     );
 
   const acima =
-    normalizado.includes("over") ||
-    normalizado.includes("mais");
+    normalizado.includes(
+      "over"
+    ) ||
+    normalizado.includes(
+      "mais"
+    );
 
   const abaixo =
-    normalizado.includes("under") ||
-    normalizado.includes("menos");
-
-  if (categoria === "gols") {
-    if (
-      acima &&
-      numero !== null
-    ) {
-      return `Mais de ${numero
-        .toFixed(1)
-        .replace(".", ",")} gols`;
-    }
-
-    if (
-      abaixo &&
-      numero !== null
-    ) {
-      return `Menos de ${numero
-        .toFixed(1)
-        .replace(".", ",")} gols`;
-    }
-  }
+    normalizado.includes(
+      "under"
+    ) ||
+    normalizado.includes(
+      "menos"
+    );
 
   if (
-    categoria === "escanteios"
+    categoria === "gols"
   ) {
     if (
       acima &&
@@ -765,7 +818,10 @@ function formatarSelecaoMercado(
     ) {
       return `Mais de ${numero
         .toFixed(1)
-        .replace(".", ",")} escanteios`;
+        .replace(
+          ".",
+          ","
+        )} gols`;
     }
 
     if (
@@ -774,12 +830,16 @@ function formatarSelecaoMercado(
     ) {
       return `Menos de ${numero
         .toFixed(1)
-        .replace(".", ",")} escanteios`;
+        .replace(
+          ".",
+          ","
+        )} gols`;
     }
   }
 
   if (
-    categoria === "cartoes"
+    categoria ===
+      "escanteios"
   ) {
     if (
       acima &&
@@ -787,7 +847,10 @@ function formatarSelecaoMercado(
     ) {
       return `Mais de ${numero
         .toFixed(1)
-        .replace(".", ",")} cartões`;
+        .replace(
+          ".",
+          ","
+        )} escanteios`;
     }
 
     if (
@@ -796,21 +859,60 @@ function formatarSelecaoMercado(
     ) {
       return `Menos de ${numero
         .toFixed(1)
-        .replace(".", ",")} cartões`;
+        .replace(
+          ".",
+          ","
+        )} escanteios`;
     }
   }
 
-  if (categoria === "ambas") {
+  if (
+    categoria ===
+      "cartoes"
+  ) {
     if (
-      normalizado === "yes" ||
-      normalizado === "sim"
+      acima &&
+      numero !== null
+    ) {
+      return `Mais de ${numero
+        .toFixed(1)
+        .replace(
+          ".",
+          ","
+        )} cartões`;
+    }
+
+    if (
+      abaixo &&
+      numero !== null
+    ) {
+      return `Menos de ${numero
+        .toFixed(1)
+        .replace(
+          ".",
+          ","
+        )} cartões`;
+    }
+  }
+
+  if (
+    categoria ===
+      "ambas"
+  ) {
+    if (
+      normalizado ===
+        "yes" ||
+      normalizado ===
+        "sim"
     ) {
       return "Ambas as equipes marcam: Sim";
     }
 
     if (
-      normalizado === "no" ||
-      normalizado === "nao"
+      normalizado ===
+        "no" ||
+      normalizado ===
+        "nao"
     ) {
       return "Ambas as equipes marcam: Não";
     }
@@ -820,7 +922,8 @@ function formatarSelecaoMercado(
 }
 
 function coletarCandidatosOdds(
-  dadosOdds: RespostaOdds
+  dadosOdds:
+    RespostaOdds
 ) {
   const candidatos =
     new Map<
@@ -830,15 +933,18 @@ function coletarCandidatosOdds(
 
   for (
     const registro of
-    dadosOdds.response ?? []
+    dadosOdds.response ??
+    []
   ) {
     for (
       const bookmaker of
-      registro.bookmakers ?? []
+      registro.bookmakers ??
+      []
     ) {
       for (
         const aposta of
-        bookmaker.bets ?? []
+        bookmaker.bets ??
+        []
       ) {
         const categoria =
           identificarCategoriaMercado(
@@ -851,17 +957,24 @@ function coletarCandidatosOdds(
 
         for (
           const valor of
-          aposta.values ?? []
+          aposta.values ??
+          []
         ) {
           const odd =
-            converterOdd(valor.odd);
+            converterOdd(
+              valor.odd
+            );
 
-          if (odd === null) {
+          if (
+            odd === null
+          ) {
             continue;
           }
 
           const selecao =
-            String(valor.value);
+            String(
+              valor.value
+            );
 
           if (
             !linhaMercadoPermitida(
@@ -893,7 +1006,9 @@ function coletarCandidatosOdds(
           };
 
           const existente =
-            candidatos.get(chave);
+            candidatos.get(
+              chave
+            );
 
           if (
             !existente ||
@@ -919,8 +1034,12 @@ function identificarLadoResultado(
   selecao: string
 ) {
   const texto =
-    normalizarTexto(selecao)
-      .replace(/\s/g, "");
+    normalizarTexto(
+      selecao
+    ).replace(
+      /\s/g,
+      ""
+    );
 
   if (
     [
@@ -959,10 +1078,21 @@ function identificarLadoDupla(
   selecao: string
 ) {
   const texto =
-    normalizarTexto(selecao)
-      .replace(/\s/g, "")
-      .replace(/\//g, "")
-      .replace(/-/g, "");
+    normalizarTexto(
+      selecao
+    )
+      .replace(
+        /\s/g,
+        ""
+      )
+      .replace(
+        /\//g,
+        ""
+      )
+      .replace(
+        /-/g,
+        ""
+      );
 
   if (
     [
@@ -990,7 +1120,8 @@ function identificarLadoDupla(
 }
 
 function obterTendenciaGols(
-  previsao: PrevisaoApi
+  previsao:
+    PrevisaoApi
 ) {
   const tendencia =
     previsao.predictions
@@ -1001,14 +1132,20 @@ function obterTendenciaGols(
   }
 
   const linha =
-    extrairNumero(tendencia);
+    extrairNumero(
+      tendencia
+    );
 
-  if (linha === null) {
+  if (
+    linha === null
+  ) {
     return null;
   }
 
   const texto =
-    String(tendencia).trim();
+    String(
+      tendencia
+    ).trim();
 
   const direcao =
     texto.startsWith("-")
@@ -1022,7 +1159,8 @@ function obterTendenciaGols(
 }
 
 function obterTendenciaAmbas(
-  previsao: PrevisaoApi
+  previsao:
+    PrevisaoApi
 ) {
   const golsCasa =
     extrairNumero(
@@ -1061,8 +1199,10 @@ function obterTendenciaAmbas(
 }
 
 function criarDicaDoCandidato(
-  analise: AnalisePartida,
-  candidato: CandidatoOdd
+  analise:
+    AnalisePartida,
+  candidato:
+    CandidatoOdd
 ): DicaSelecionada | null {
   const {
     partida,
@@ -1106,7 +1246,7 @@ function criarDicaDoCandidato(
 
   if (
     candidato.categoria ===
-    "resultado"
+      "resultado"
   ) {
     const lado =
       identificarLadoResultado(
@@ -1117,7 +1257,9 @@ function criarDicaDoCandidato(
       return null;
     }
 
-    if (lado === "casa") {
+    if (
+      lado === "casa"
+    ) {
       probabilidade =
         percentualCasa;
 
@@ -1139,7 +1281,9 @@ function criarDicaDoCandidato(
         "Empate";
     }
 
-    if (probabilidade < 45) {
+    if (
+      probabilidade < 45
+    ) {
       return null;
     }
 
@@ -1152,7 +1296,7 @@ function criarDicaDoCandidato(
 
   if (
     candidato.categoria ===
-    "dupla"
+      "dupla"
   ) {
     const lado =
       identificarLadoDupla(
@@ -1163,7 +1307,9 @@ function criarDicaDoCandidato(
       return null;
     }
 
-    if (lado === "casa") {
+    if (
+      lado === "casa"
+    ) {
       probabilidade =
         Math.min(
           percentualCasa +
@@ -1185,7 +1331,9 @@ function criarDicaDoCandidato(
         `${partida.teams.away.name} ou empate`;
     }
 
-    if (probabilidade < 55) {
+    if (
+      probabilidade < 55
+    ) {
       return null;
     }
 
@@ -1198,7 +1346,7 @@ function criarDicaDoCandidato(
 
   if (
     candidato.categoria ===
-    "gols"
+      "gols"
   ) {
     const tendencia =
       obterTendenciaGols(
@@ -1254,7 +1402,9 @@ function criarDicaDoCandidato(
           tendencia.linha
       );
 
-    if (diferencaLinha > 1) {
+    if (
+      diferencaLinha > 1
+    ) {
       return null;
     }
 
@@ -1277,12 +1427,15 @@ function criarDicaDoCandidato(
           : "menos"
       } de ${tendencia.linha
         .toFixed(1)
-        .replace(".", ",")} gols.`;
+        .replace(
+          ".",
+          ","
+        )} gols.`;
   }
 
   if (
     candidato.categoria ===
-    "ambas"
+      "ambas"
   ) {
     const tendencia =
       obterTendenciaAmbas(
@@ -1299,20 +1452,26 @@ function criarDicaDoCandidato(
       );
 
     const candidatoSim =
-      selecao === "yes" ||
-      selecao === "sim";
+      selecao ===
+        "yes" ||
+      selecao ===
+        "sim";
 
     const candidatoNao =
-      selecao === "no" ||
-      selecao === "nao";
+      selecao ===
+        "no" ||
+      selecao ===
+        "nao";
 
     const corresponde =
       (
-        tendencia === "sim" &&
+        tendencia ===
+          "sim" &&
         candidatoSim
       ) ||
       (
-        tendencia === "nao" &&
+        tendencia ===
+          "nao" &&
         candidatoNao
       );
 
@@ -1330,17 +1489,19 @@ function criarDicaDoCandidato(
       probabilidade + 11;
 
     justificativa =
-      tendencia === "sim"
+      tendencia ===
+        "sim"
         ? "A projeção de gols aponta possibilidade de as duas equipes marcarem."
         : "A projeção de gols indica que pelo menos uma equipe pode não marcar.";
   }
 
   if (
     candidato.categoria ===
-    "escanteios"
+      "escanteios"
   ) {
     if (
-      candidato.odd > 2.2
+      candidato.odd >
+      2.2
     ) {
       return null;
     }
@@ -1360,10 +1521,11 @@ function criarDicaDoCandidato(
 
   if (
     candidato.categoria ===
-    "cartoes"
+      "cartoes"
   ) {
     if (
-      candidato.odd > 2.2
+      candidato.odd >
+      2.2
     ) {
       return null;
     }
@@ -1382,7 +1544,8 @@ function criarDicaDoCandidato(
   }
 
   if (
-    previsao.predictions.advice
+    previsao.predictions
+      .advice
   ) {
     justificativa +=
       `\nAnálise da API: ${previsao.predictions.advice}.`;
@@ -1396,7 +1559,8 @@ function criarDicaDoCandidato(
   );
 
   const agora =
-    new Date().toISOString();
+    new Date()
+      .toISOString();
 
   const nomesMercados:
     Record<
@@ -1432,7 +1596,8 @@ function criarDicaDoCandidato(
     prioridadeCompeticao:
       competicao.prioridade,
 
-    esporte: "Futebol",
+    esporte:
+      "Futebol",
 
     competicao:
       competicao.nomeExibicao,
@@ -1462,7 +1627,9 @@ function criarDicaDoCandidato(
 
     probabilidade_estimada:
       Number(
-        probabilidade.toFixed(1)
+        probabilidade.toFixed(
+          1
+        )
       ),
 
     nivel_confianca:
@@ -1475,28 +1642,36 @@ function criarDicaDoCandidato(
     fonte_dados:
       `API-Football • ${candidato.bookmaker}`,
 
-    status: "ativa",
+    status:
+      "ativa",
 
-    resultado: "pendente",
+    resultado:
+      "pendente",
 
-    lucro_prejuizo: 0,
+    lucro_prejuizo:
+      0,
 
     destaque:
       probabilidade >= 70,
 
-    publicada_em: agora,
+    publicada_em:
+      agora,
 
-    atualizada_em: agora,
+    atualizada_em:
+      agora,
 
     pontuacao:
       Number(
-        pontuacao.toFixed(1)
+        pontuacao.toFixed(
+          1
+        )
       ),
   };
 }
 
 function selecionarDicasFinais(
-  dicas: DicaSelecionada[]
+  dicas:
+    DicaSelecionada[]
 ) {
   const ordenadas = [
     ...dicas,
@@ -1521,7 +1696,10 @@ function selecionarDicasFinais(
     DicaSelecionada[] = [];
 
   const quantidadePorPartida =
-    new Map<number, number>();
+    new Map<
+      number,
+      number
+    >();
 
   const quantidadePorCategoria =
     new Map<
@@ -1533,7 +1711,8 @@ function selecionarDicasFinais(
     new Set<string>();
 
   for (
-    const dica of ordenadas
+    const dica of
+    ordenadas
   ) {
     if (
       selecionadas.length >=
@@ -1566,13 +1745,17 @@ function selecionarDicasFinais(
         dica.entrada_sugerida
       )}`;
 
-    if (chaves.has(chave)) {
+    if (
+      chaves.has(chave)
+    ) {
       continue;
     }
 
     chaves.add(chave);
 
-    selecionadas.push(dica);
+    selecionadas.push(
+      dica
+    );
 
     quantidadePorPartida.set(
       dica.fixtureId,
@@ -1599,7 +1782,8 @@ export async function GET(
     return NextResponse.json(
       {
         sucesso: false,
-        erro: "Não autorizado.",
+        erro:
+          "Não autorizado.",
       },
       {
         status: 401,
@@ -1675,41 +1859,49 @@ export async function GET(
 
     const todasPartidas = [
       ...(
-        dadosHoje.response ?? []
+        dadosHoje.response ??
+        []
       ),
 
       ...(
-        dadosAmanha.response ?? []
+        dadosAmanha.response ??
+        []
       ),
     ];
 
     const partidasPermitidas =
       todasPartidas
-        .filter((partida) => {
-          const aindaNaoIniciada =
-            partida.fixture.status
-              .short === "NS";
+        .filter(
+          (partida) => {
+            const aindaNaoIniciada =
+              partida.fixture
+                .status
+                .short ===
+              "NS";
 
-          const competicaoPermitida =
-            MAPA_COMPETICOES.has(
-              partida.league.id
+            const competicaoPermitida =
+              MAPA_COMPETICOES.has(
+                partida.league.id
+              );
+
+            return (
+              aindaNaoIniciada &&
+              competicaoPermitida
             );
-
-          return (
-            aindaNaoIniciada &&
-            competicaoPermitida
-          );
-        })
+          }
+        )
         .sort((a, b) => {
           const prioridadeA =
             MAPA_COMPETICOES.get(
               a.league.id
-            )?.prioridade ?? 999;
+            )?.prioridade ??
+            999;
 
           const prioridadeB =
             MAPA_COMPETICOES.get(
               b.league.id
-            )?.prioridade ?? 999;
+            )?.prioridade ??
+            999;
 
           if (
             prioridadeA !==
@@ -1740,7 +1932,8 @@ export async function GET(
     const analises:
       AnalisePartida[] = [];
 
-    let errosPrevisao = 0;
+    let errosPrevisao =
+      0;
 
     for (
       const partida of
@@ -1771,7 +1964,8 @@ export async function GET(
             dadosPrevisao.errors
           )
         ) {
-          errosPrevisao += 1;
+          errosPrevisao +=
+            1;
 
           console.error(
             "Erro da API ao buscar previsão:",
@@ -1795,7 +1989,8 @@ export async function GET(
           competicao,
         });
       } catch (error) {
-        errosPrevisao += 1;
+        errosPrevisao +=
+          1;
 
         console.error(
           "Erro na previsão:",
@@ -1805,17 +2000,26 @@ export async function GET(
     }
 
     const candidatos:
-      DicaSelecionada[] = [];
+      DicaSelecionada[] =
+      [];
 
-    let consultasOdds = 0;
-    let errosOdds = 0;
-    let mercadosEncontrados = 0;
+    let consultasOdds =
+      0;
+
+    let errosOdds =
+      0;
+
+    let mercadosEncontrados =
+      0;
 
     const categoriasEncontradas =
-      new Set<CategoriaMercado>();
+      new Set<
+        CategoriaMercado
+      >();
 
     for (
-      const analise of analises
+      const analise of
+      analises
     ) {
       try {
         await aguardar(
@@ -1828,14 +2032,16 @@ export async function GET(
             chaveApi
           );
 
-        consultasOdds += 1;
+        consultasOdds +=
+          1;
 
         if (
           possuiErrosApi(
             dadosOdds.errors
           )
         ) {
-          errosOdds += 1;
+          errosOdds +=
+            1;
 
           console.error(
             "Erro da API ao buscar odds:",
@@ -1868,11 +2074,14 @@ export async function GET(
             );
 
           if (dica) {
-            candidatos.push(dica);
+            candidatos.push(
+              dica
+            );
           }
         }
       } catch (error) {
-        errosOdds += 1;
+        errosOdds +=
+          1;
 
         console.error(
           "Erro ao buscar odds:",
@@ -1890,39 +2099,47 @@ export async function GET(
       createAdminClient();
 
     const {
-      error: erroEncerrar,
+      error:
+        erroEncerrar,
     } = await supabase
-      .from("dicas_apostas")
+      .from(
+        "dicas_apostas"
+      )
       .update({
-        status: "encerrada",
+        status:
+          "encerrada",
       })
-      .eq("status", "ativa")
+      .eq(
+        "status",
+        "ativa"
+      )
       .lt(
         "data_jogo",
         dataInicial
       );
 
-    if (erroEncerrar) {
+    if (
+      erroEncerrar
+    ) {
       console.error(
         "Erro ao encerrar dicas antigas:",
         erroEncerrar
       );
     }
 
-    let dicasInseridas = 0;
-    let dicasAtualizadas = 0;
-    let errosInsercao = 0;
+    let dicasInseridas =
+      0;
+
+    let dicasAtualizadas =
+      0;
+
+    let errosInsercao =
+      0;
 
     for (
       const dica of
       dicasSelecionadas
     ) {
-      /*
-       * fixtureId é removido do objeto
-       * original e convertido para
-       * fixture_id, que é o nome da
-       * coluna no Supabase.
-       */
       const {
         fixtureId,
 
@@ -1946,10 +2163,15 @@ export async function GET(
       };
 
       const {
-        data: existente,
-        error: erroConsulta,
+        data:
+          existente,
+
+        error:
+          erroConsulta,
       } = await supabase
-        .from("dicas_apostas")
+        .from(
+          "dicas_apostas"
+        )
         .select("id")
         .eq(
           "data_jogo",
@@ -1969,8 +2191,11 @@ export async function GET(
         )
         .maybeSingle();
 
-      if (erroConsulta) {
-        errosInsercao += 1;
+      if (
+        erroConsulta
+      ) {
+        errosInsercao +=
+          1;
 
         console.error(
           "Erro ao procurar dica existente:",
@@ -1980,11 +2205,16 @@ export async function GET(
         continue;
       }
 
-      if (existente) {
+      if (
+        existente
+      ) {
         const {
-          error: erroAtualizar,
+          error:
+            erroAtualizar,
         } = await supabase
-          .from("dicas_apostas")
+          .from(
+            "dicas_apostas"
+          )
           .update({
             ...dadosBancoComFixture,
 
@@ -1997,37 +2227,48 @@ export async function GET(
             existente.id
           );
 
-        if (erroAtualizar) {
-          errosInsercao += 1;
+        if (
+          erroAtualizar
+        ) {
+          errosInsercao +=
+            1;
 
           console.error(
             "Erro ao atualizar dica:",
             erroAtualizar
           );
         } else {
-          dicasAtualizadas += 1;
+          dicasAtualizadas +=
+            1;
         }
 
         continue;
       }
 
       const {
-        error: erroInserir,
+        error:
+          erroInserir,
       } = await supabase
-        .from("dicas_apostas")
+        .from(
+          "dicas_apostas"
+        )
         .insert(
           dadosBancoComFixture
         );
 
-      if (erroInserir) {
-        errosInsercao += 1;
+      if (
+        erroInserir
+      ) {
+        errosInsercao +=
+          1;
 
         console.error(
           "Erro ao inserir dica:",
           erroInserir
         );
       } else {
-        dicasInseridas += 1;
+        dicasInseridas +=
+          1;
       }
     }
 
@@ -2061,8 +2302,10 @@ export async function GET(
       sucesso: true,
 
       periodoConsultado: {
-        inicio: dataInicial,
-        fim: dataFinal,
+        inicio:
+          dataInicial,
+        fim:
+          dataFinal,
       },
 
       intervaloRequisicoesSegundos:
@@ -2086,6 +2329,9 @@ export async function GET(
         analises.length,
 
       consultasOdds,
+
+      oddsEncontradas:
+        consultasOdds,
 
       mercadosEncontrados,
 

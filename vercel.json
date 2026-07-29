@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/atualizar-dicas",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/atualizar-dicas",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/atualizar-dicas",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/verificar-resultados",
+      "schedule": "30 2 * * *"
+    }
+  ]
+}

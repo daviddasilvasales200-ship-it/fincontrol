@@ -9,6 +9,9 @@ export type Aposta = {
   user_id: string;
   descricao: string;
   modalidade: string;
+  competicao: string | null;
+  time_casa: string | null;
+  time_visitante: string | null;
   casa_aposta: string | null;
   valor_apostado: number;
   odd: number;
@@ -24,6 +27,9 @@ export type Aposta = {
 export type FormularioAposta = {
   descricao: string;
   modalidade: string;
+  competicao: string;
+  timeCasa: string;
+  timeVisitante: string;
   casaAposta: string;
   valorApostado: string;
   odd: string;
@@ -35,6 +41,9 @@ export type FormularioAposta = {
 export type NovaAposta = {
   descricao: string;
   modalidade: string;
+  competicao: string | null;
+  time_casa: string | null;
+  time_visitante: string | null;
   casa_aposta: string | null;
   valor_apostado: number;
   odd: number;
@@ -72,10 +81,33 @@ export const MODALIDADES_APOSTAS = [
   "Outros",
 ] as const;
 
+export const COMPETICOES_APOSTAS = [
+  "Brasileirão Série A",
+  "Brasileirão Série B",
+  "Copa do Brasil",
+  "Campeonato Carioca",
+  "Campeonato Paulista",
+  "Campeonato Mineiro",
+  "Campeonato Gaúcho",
+  "Copa Libertadores",
+  "Copa Sul-Americana",
+  "Champions League",
+  "Europa League",
+  "Premier League",
+  "La Liga",
+  "Serie A Italiana",
+  "Bundesliga",
+  "Ligue 1",
+  "Mundial de Clubes",
+  "Copa do Mundo",
+  "Outros",
+] as const;
+
 function obterDataLocalAtual() {
   const hoje = new Date();
 
   const ano = hoje.getFullYear();
+
   const mes = String(
     hoje.getMonth() + 1
   ).padStart(2, "0");
@@ -91,6 +123,9 @@ export const FORMULARIO_APOSTA_INICIAL: FormularioAposta =
   {
     descricao: "",
     modalidade: "",
+    competicao: "",
+    timeCasa: "",
+    timeVisitante: "",
     casaAposta: "",
     valorApostado: "",
     odd: "",
@@ -109,7 +144,9 @@ export function converterValorMonetario(
     .replace(/\./g, "")
     .replace(",", ".");
 
-  const valorConvertido = Number(valorLimpo);
+  const valorConvertido = Number(
+    valorLimpo
+  );
 
   return Number.isFinite(valorConvertido)
     ? valorConvertido
@@ -121,7 +158,9 @@ export function converterOdd(valor: string) {
     .trim()
     .replace(",", ".");
 
-  const oddConvertida = Number(valorLimpo);
+  const oddConvertida = Number(
+    valorLimpo
+  );
 
   return Number.isFinite(oddConvertida)
     ? oddConvertida
@@ -154,7 +193,8 @@ export function calcularLucroPrejuizo(
   if (resultado === "ganha") {
     return Number(
       (
-        retornoPotencial - valorApostado
+        retornoPotencial -
+        valorApostado
       ).toFixed(2)
     );
   }
@@ -194,19 +234,45 @@ export function converterFormularioParaAposta(
     );
 
   return {
-    descricao: formulario.descricao.trim(),
-    modalidade: formulario.modalidade,
+    descricao:
+      formulario.descricao.trim(),
+
+    modalidade:
+      formulario.modalidade,
+
+    competicao:
+      formulario.competicao.trim() ||
+      null,
+
+    time_casa:
+      formulario.timeCasa.trim() ||
+      null,
+
+    time_visitante:
+      formulario.timeVisitante.trim() ||
+      null,
+
     casa_aposta:
       formulario.casaAposta.trim() ||
       null,
-    valor_apostado: valorApostado,
+
+    valor_apostado:
+      valorApostado,
+
     odd,
+
     retorno_potencial:
       retornoPotencial,
-    resultado: formulario.resultado,
+
+    resultado:
+      formulario.resultado,
+
     lucro_prejuizo:
       lucroPrejuizo,
-    data_aposta: formulario.dataAposta,
+
+    data_aposta:
+      formulario.dataAposta,
+
     observacao:
       formulario.observacao.trim() ||
       null,
@@ -216,23 +282,29 @@ export function converterFormularioParaAposta(
 export function calcularResumoApostas(
   apostas: Aposta[]
 ): ResumoApostas {
-  const apostasFinalizadas = apostas.filter(
-    (aposta) =>
-      aposta.resultado !== "pendente"
-  );
+  const apostasFinalizadas =
+    apostas.filter(
+      (aposta) =>
+        aposta.resultado !==
+        "pendente"
+    );
 
   const totalApostado =
     apostasFinalizadas.reduce(
       (total, aposta) =>
         total +
-        Number(aposta.valor_apostado),
+        Number(
+          aposta.valor_apostado
+        ),
       0
     );
 
   const retornoTotal =
     apostasFinalizadas.reduce(
       (total, aposta) => {
-        if (aposta.resultado === "ganha") {
+        if (
+          aposta.resultado === "ganha"
+        ) {
           return (
             total +
             Number(
@@ -242,11 +314,14 @@ export function calcularResumoApostas(
         }
 
         if (
-          aposta.resultado === "anulada"
+          aposta.resultado ===
+          "anulada"
         ) {
           return (
             total +
-            Number(aposta.valor_apostado)
+            Number(
+              aposta.valor_apostado
+            )
           );
         }
 
@@ -277,16 +352,19 @@ export function calcularResumoApostas(
     retornoTotal,
     lucroPrejuizo,
     roi,
+
     quantidadePendentes:
       apostas.filter(
         (aposta) =>
           aposta.resultado ===
           "pendente"
       ).length,
+
     quantidadeGanhas:
       apostas.filter(
         (aposta) =>
-          aposta.resultado === "ganha"
+          aposta.resultado ===
+          "ganha"
       ).length,
   };
 }

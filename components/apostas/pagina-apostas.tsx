@@ -14,7 +14,6 @@ import ModalAposta from "@/components/apostas/modal-aposta";
 import { createClient } from "@/lib/supabase/client";
 
 import {
-  MODALIDADES_APOSTAS,
   calcularResumoApostas,
 } from "@/types/aposta";
 
@@ -37,16 +36,13 @@ export default function PaginaApostas() {
     setApostaSelecionada,
   ] = useState<Aposta | null>(null);
 
-  const [busca, setBusca] =
-    useState("");
+  const [busca, setBusca] = useState("");
 
-  const [modalidade, setModalidade] =
+  const [competicao, setCompeticao] =
     useState("todas");
 
   const [resultado, setResultado] =
-    useState<FiltroResultadoAposta>(
-      "todos"
-    );
+    useState<FiltroResultadoAposta>("todos");
 
   const [carregando, setCarregando] =
     useState(true);
@@ -57,16 +53,12 @@ export default function PaginaApostas() {
   const [modalAberto, setModalAberto] =
     useState(false);
 
-  const [erro, setErro] =
-    useState("");
-
+  const [erro, setErro] = useState("");
   const [sucesso, setSucesso] =
     useState("");
 
   const carregarApostas = useCallback(
-    async (
-      mostrarCarregamento = true
-    ) => {
+    async (mostrarCarregamento = true) => {
       if (mostrarCarregamento) {
         setCarregando(true);
       }
@@ -83,8 +75,7 @@ export default function PaginaApostas() {
           throw usuarioError;
         }
 
-        const usuario =
-          usuarioData.user;
+        const usuario = usuarioData.user;
 
         if (!usuario) {
           throw new Error(
@@ -101,6 +92,9 @@ export default function PaginaApostas() {
                 user_id,
                 descricao,
                 modalidade,
+                competicao,
+                time_casa,
+                time_visitante,
                 casa_aposta,
                 valor_apostado,
                 odd,
@@ -113,10 +107,7 @@ export default function PaginaApostas() {
                 updated_at
               `
             )
-            .eq(
-              "user_id",
-              usuario.id
-            )
+            .eq("user_id", usuario.id)
             .order("data_aposta", {
               ascending: false,
             })
@@ -128,54 +119,83 @@ export default function PaginaApostas() {
           throw error;
         }
 
-        const registros: Aposta[] =
-          (data ?? []).map(
-            (aposta) => ({
-              id: Number(aposta.id),
-              user_id: String(
-                aposta.user_id
-              ),
-              descricao: String(
-                aposta.descricao
-              ),
-              modalidade: String(
-                aposta.modalidade
-              ),
-              casa_aposta:
-                aposta.casa_aposta
-                  ? String(
-                      aposta.casa_aposta
-                    )
-                  : null,
-              valor_apostado: Number(
-                aposta.valor_apostado
-              ),
-              odd: Number(aposta.odd),
-              retorno_potencial: Number(
-                aposta.retorno_potencial
-              ),
-              resultado:
-                aposta.resultado as Aposta["resultado"],
-              lucro_prejuizo: Number(
-                aposta.lucro_prejuizo
-              ),
-              data_aposta: String(
-                aposta.data_aposta
-              ),
-              observacao:
-                aposta.observacao
-                  ? String(
-                      aposta.observacao
-                    )
-                  : null,
-              created_at: String(
-                aposta.created_at
-              ),
-              updated_at: String(
-                aposta.updated_at
-              ),
-            })
-          );
+        const registros: Aposta[] = (
+          data ?? []
+        ).map((aposta) => ({
+          id: Number(aposta.id),
+
+          user_id: String(
+            aposta.user_id
+          ),
+
+          descricao: String(
+            aposta.descricao
+          ),
+
+          modalidade: String(
+            aposta.modalidade
+          ),
+
+          competicao:
+            aposta.competicao
+              ? String(aposta.competicao)
+              : null,
+
+          time_casa:
+            aposta.time_casa
+              ? String(aposta.time_casa)
+              : null,
+
+          time_visitante:
+            aposta.time_visitante
+              ? String(
+                  aposta.time_visitante
+                )
+              : null,
+
+          casa_aposta:
+            aposta.casa_aposta
+              ? String(
+                  aposta.casa_aposta
+                )
+              : null,
+
+          valor_apostado: Number(
+            aposta.valor_apostado
+          ),
+
+          odd: Number(aposta.odd),
+
+          retorno_potencial: Number(
+            aposta.retorno_potencial
+          ),
+
+          resultado:
+            aposta.resultado as Aposta["resultado"],
+
+          lucro_prejuizo: Number(
+            aposta.lucro_prejuizo
+          ),
+
+          data_aposta: String(
+            aposta.data_aposta
+          ),
+
+          observacao:
+            aposta.observacao
+              ? String(
+                  aposta.observacao
+                )
+              : null,
+
+          created_at: String(
+            aposta.created_at
+          ),
+
+          updated_at: String(
+            aposta.updated_at
+          ),
+        }));
 
         setApostas(registros);
       } catch (error) {
@@ -219,21 +239,41 @@ export default function PaginaApostas() {
     };
   }, [sucesso]);
 
+  const competicoesDisponiveis =
+    useMemo(() => {
+      const competicoes = apostas
+        .map((aposta) =>
+          aposta.competicao?.trim()
+        )
+        .filter(
+          (
+            item
+          ): item is string =>
+            Boolean(item)
+        );
+
+      return Array.from(
+        new Set(competicoes)
+      ).sort((a, b) =>
+        a.localeCompare(
+          b,
+          "pt-BR"
+        )
+      );
+    }, [apostas]);
+
   const apostasFiltradas =
     useMemo(() => {
-      const buscaNormalizada =
-        busca
-          .trim()
-          .toLocaleLowerCase(
-            "pt-BR"
-          );
+      const buscaNormalizada = busca
+        .trim()
+        .toLocaleLowerCase("pt-BR");
 
       return apostas.filter(
         (aposta) => {
-          const correspondeModalidade =
-            modalidade === "todas" ||
-            aposta.modalidade ===
-              modalidade;
+          const correspondeCompeticao =
+            competicao === "todas" ||
+            aposta.competicao ===
+              competicao;
 
           const correspondeResultado =
             resultado === "todos" ||
@@ -241,7 +281,7 @@ export default function PaginaApostas() {
               resultado;
 
           if (
-            !correspondeModalidade ||
+            !correspondeCompeticao ||
             !correspondeResultado
           ) {
             return false;
@@ -254,6 +294,9 @@ export default function PaginaApostas() {
           const textoPesquisavel = [
             aposta.descricao,
             aposta.modalidade,
+            aposta.competicao ?? "",
+            aposta.time_casa ?? "",
+            aposta.time_visitante ?? "",
             aposta.casa_aposta ?? "",
             aposta.observacao ?? "",
           ]
@@ -270,7 +313,7 @@ export default function PaginaApostas() {
     }, [
       apostas,
       busca,
-      modalidade,
+      competicao,
       resultado,
     ]);
 
@@ -363,8 +406,7 @@ export default function PaginaApostas() {
         throw usuarioError;
       }
 
-      const usuario =
-        usuarioData.user;
+      const usuario = usuarioData.user;
 
       if (!usuario) {
         throw new Error(
@@ -416,13 +458,13 @@ export default function PaginaApostas() {
 
   function limparFiltros() {
     setBusca("");
-    setModalidade("todas");
+    setCompeticao("todas");
     setResultado("todos");
   }
 
   const possuiFiltros =
     busca.trim() !== "" ||
-    modalidade !== "todas" ||
+    competicao !== "todas" ||
     resultado !== "todos";
 
   return (
@@ -439,9 +481,10 @@ export default function PaginaApostas() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Registre suas apostas,
-              acompanhe resultados e analise
-              lucro, prejuízo e ROI.
+              Registre confrontos,
+              acompanhe resultados e
+              analise lucro, prejuízo e
+              ROI.
             </p>
           </div>
 
@@ -571,7 +614,7 @@ export default function PaginaApostas() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">
-          <div className="grid gap-4 lg:grid-cols-[1fr_220px_180px_auto]">
+          <div className="grid gap-4 lg:grid-cols-[1fr_260px_180px_auto]">
             <div>
               <label
                 htmlFor="busca-aposta"
@@ -589,34 +632,34 @@ export default function PaginaApostas() {
                     event.target.value
                   )
                 }
-                placeholder="Buscar apostas..."
+                placeholder="Buscar por time, descrição ou casa..."
                 className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
               />
             </div>
 
             <div>
               <label
-                htmlFor="modalidade-aposta-filtro"
+                htmlFor="competicao-aposta-filtro"
                 className="mb-2 block text-sm font-medium text-zinc-400"
               >
-                Modalidade
+                Competição
               </label>
 
               <select
-                id="modalidade-aposta-filtro"
-                value={modalidade}
+                id="competicao-aposta-filtro"
+                value={competicao}
                 onChange={(event) =>
-                  setModalidade(
+                  setCompeticao(
                     event.target.value
                   )
                 }
                 className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-sm text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
               >
                 <option value="todas">
-                  Todas
+                  Todas as competições
                 </option>
 
-                {MODALIDADES_APOSTAS.map(
+                {competicoesDisponiveis.map(
                   (item) => (
                     <option
                       key={item}

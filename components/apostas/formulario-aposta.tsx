@@ -11,6 +11,7 @@ import CampoData from "@/components/campo-data";
 import { createClient } from "@/lib/supabase/client";
 
 import {
+  COMPETICOES_APOSTAS,
   FORMULARIO_APOSTA_INICIAL,
   MODALIDADES_APOSTAS,
   calcularLucroPrejuizo,
@@ -61,6 +62,10 @@ function converterApostaParaFormulario(
   return {
     descricao: aposta.descricao,
     modalidade: aposta.modalidade,
+    competicao: aposta.competicao ?? "",
+    timeCasa: aposta.time_casa ?? "",
+    timeVisitante:
+      aposta.time_visitante ?? "",
     casaAposta: aposta.casa_aposta ?? "",
     valorApostado: Number(
       aposta.valor_apostado
@@ -75,6 +80,28 @@ function converterApostaParaFormulario(
     observacao: aposta.observacao ?? "",
   };
 }
+
+const OPCOES_RESULTADO: {
+  valor: ResultadoAposta;
+  texto: string;
+}[] = [
+  {
+    valor: "pendente",
+    texto: "Pendente",
+  },
+  {
+    valor: "ganha",
+    texto: "Ganha",
+  },
+  {
+    valor: "perdida",
+    texto: "Perdida",
+  },
+  {
+    valor: "anulada",
+    texto: "Anulada",
+  },
+];
 
 export default function FormularioAposta({
   aposta = null,
@@ -150,6 +177,7 @@ export default function FormularioAposta({
 
       setErro("");
       setSucesso("");
+
       return;
     }
 
@@ -193,6 +221,29 @@ export default function FormularioAposta({
 
     if (!formulario.modalidade) {
       return "Selecione a modalidade.";
+    }
+
+    if (!formulario.competicao.trim()) {
+      return "Informe ou selecione a competição.";
+    }
+
+    if (!formulario.timeCasa.trim()) {
+      return "Informe o primeiro time do confronto.";
+    }
+
+    if (!formulario.timeVisitante.trim()) {
+      return "Informe o segundo time do confronto.";
+    }
+
+    if (
+      formulario.timeCasa
+        .trim()
+        .toLocaleLowerCase("pt-BR") ===
+      formulario.timeVisitante
+        .trim()
+        .toLocaleLowerCase("pt-BR")
+    ) {
+      return "Os times do confronto devem ser diferentes.";
     }
 
     if (
@@ -270,6 +321,12 @@ export default function FormularioAposta({
               dadosAposta.descricao,
             modalidade:
               dadosAposta.modalidade,
+            competicao:
+              dadosAposta.competicao,
+            time_casa:
+              dadosAposta.time_casa,
+            time_visitante:
+              dadosAposta.time_visitante,
             casa_aposta:
               dadosAposta.casa_aposta,
             valor_apostado:
@@ -334,28 +391,6 @@ export default function FormularioAposta({
     }
   }
 
-  const opcoesResultado: {
-    valor: ResultadoAposta;
-    texto: string;
-  }[] = [
-    {
-      valor: "pendente",
-      texto: "Pendente",
-    },
-    {
-      valor: "ganha",
-      texto: "Ganha",
-    },
-    {
-      valor: "perdida",
-      texto: "Perdida",
-    },
-    {
-      valor: "anulada",
-      texto: "Anulada",
-    },
-  ];
-
   return (
     <form
       onSubmit={salvarAposta}
@@ -370,8 +405,8 @@ export default function FormularioAposta({
 
         <p className="mt-1 text-sm leading-6 text-zinc-500">
           {modoEdicao
-            ? "Atualize os dados e o resultado da aposta."
-            : "Registre uma nova entrada e acompanhe seu desempenho."}
+            ? "Atualize o confronto, os dados e o resultado da aposta."
+            : "Registre o confronto e acompanhe seu desempenho."}
         </p>
       </div>
 
@@ -459,32 +494,149 @@ export default function FormularioAposta({
 
         <div>
           <label
-            htmlFor="casa-aposta"
+            htmlFor="competicao-aposta"
             className="mb-2 block text-sm font-medium text-zinc-300"
           >
-            Casa de aposta
-            <span className="ml-1 text-zinc-600">
-              (opcional)
-            </span>
+            Competição
           </label>
 
           <input
-            id="casa-aposta"
+            id="competicao-aposta"
             type="text"
+            list="lista-competicoes-apostas"
             autoComplete="off"
             maxLength={120}
-            value={formulario.casaAposta}
+            value={formulario.competicao}
             onChange={(event) =>
               atualizarCampo(
-                "casaAposta",
+                "competicao",
                 event.target.value
               )
             }
-            placeholder="Ex.: Betano"
+            placeholder="Ex.: Brasileirão Série A"
             disabled={bloqueado}
             className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:cursor-not-allowed disabled:opacity-60"
           />
+
+          <datalist id="lista-competicoes-apostas">
+            {COMPETICOES_APOSTAS.map(
+              (competicao) => (
+                <option
+                  key={competicao}
+                  value={competicao}
+                />
+              )
+            )}
+          </datalist>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-800 bg-black/60 p-4">
+        <p className="text-sm font-semibold text-white">
+          Confronto
+        </p>
+
+        <p className="mt-1 text-xs leading-5 text-zinc-600">
+          Informe os dois participantes da partida.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
+          <div>
+            <label
+              htmlFor="time-casa-aposta"
+              className="mb-2 block text-sm font-medium text-zinc-300"
+            >
+              Primeiro time
+            </label>
+
+            <input
+              id="time-casa-aposta"
+              type="text"
+              autoComplete="off"
+              maxLength={120}
+              value={formulario.timeCasa}
+              onChange={(event) =>
+                atualizarCampo(
+                  "timeCasa",
+                  event.target.value
+                )
+              }
+              placeholder="Ex.: Flamengo"
+              disabled={bloqueado}
+              className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+
+          <div className="hidden pb-3 text-sm font-bold text-zinc-600 sm:block">
+            X
+          </div>
+
+          <div>
+            <label
+              htmlFor="time-visitante-aposta"
+              className="mb-2 block text-sm font-medium text-zinc-300"
+            >
+              Segundo time
+            </label>
+
+            <input
+              id="time-visitante-aposta"
+              type="text"
+              autoComplete="off"
+              maxLength={120}
+              value={formulario.timeVisitante}
+              onChange={(event) =>
+                atualizarCampo(
+                  "timeVisitante",
+                  event.target.value
+                )
+              }
+              placeholder="Ex.: Palmeiras"
+              disabled={bloqueado}
+              className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+        </div>
+
+        {formulario.timeCasa.trim() &&
+          formulario.timeVisitante.trim() && (
+            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-center text-sm font-semibold text-zinc-300">
+              {formulario.timeCasa.trim()}
+              <span className="mx-3 text-red-500">
+                X
+              </span>
+              {formulario.timeVisitante.trim()}
+            </div>
+          )}
+      </div>
+
+      <div>
+        <label
+          htmlFor="casa-aposta"
+          className="mb-2 block text-sm font-medium text-zinc-300"
+        >
+          Casa de aposta
+          <span className="ml-1 text-zinc-600">
+            (opcional)
+          </span>
+        </label>
+
+        <input
+          id="casa-aposta"
+          type="text"
+          autoComplete="off"
+          maxLength={120}
+          value={formulario.casaAposta}
+          onChange={(event) =>
+            atualizarCampo(
+              "casaAposta",
+              event.target.value
+            )
+          }
+          placeholder="Ex.: Betano"
+          disabled={bloqueado}
+          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:cursor-not-allowed disabled:opacity-60"
+        />
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -553,7 +705,7 @@ export default function FormularioAposta({
         </p>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {opcoesResultado.map((opcao) => {
+          {OPCOES_RESULTADO.map((opcao) => {
             const selecionado =
               formulario.resultado ===
               opcao.valor;
@@ -672,7 +824,9 @@ export default function FormularioAposta({
                       : "text-zinc-300"
                 }`}
               >
-                {lucroPrejuizo > 0 ? "+" : ""}
+                {lucroPrejuizo > 0
+                  ? "+"
+                  : ""}
                 {formatarMoeda(
                   lucroPrejuizo
                 )}

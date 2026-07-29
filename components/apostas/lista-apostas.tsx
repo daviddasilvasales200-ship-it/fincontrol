@@ -13,7 +13,9 @@ type ListaApostasProps = {
   onExcluir: (aposta: Aposta) => void;
 };
 
-function formatarMoeda(valor: number | string) {
+function formatarMoeda(
+  valor: number | string
+) {
   const valorNumerico = Number(valor);
 
   if (!Number.isFinite(valorNumerico)) {
@@ -26,7 +28,9 @@ function formatarMoeda(valor: number | string) {
   }).format(valorNumerico);
 }
 
-function formatarOdd(valor: number | string) {
+function formatarOdd(
+  valor: number | string
+) {
   const valorNumerico = Number(valor);
 
   if (!Number.isFinite(valorNumerico)) {
@@ -89,21 +93,25 @@ function obterConfiguracaoResultado(
       texto: "Pendente",
       classes:
         "border-amber-900/70 bg-amber-950/40 text-amber-400",
+      textoResultado: "text-amber-400",
     },
     ganha: {
       texto: "Ganha",
       classes:
         "border-emerald-900/70 bg-emerald-950/40 text-emerald-400",
+      textoResultado: "text-emerald-400",
     },
     perdida: {
       texto: "Perdida",
       classes:
         "border-red-900/70 bg-red-950/40 text-red-400",
+      textoResultado: "text-red-400",
     },
     anulada: {
       texto: "Anulada",
       classes:
         "border-zinc-700 bg-zinc-900 text-zinc-400",
+      textoResultado: "text-zinc-300",
     },
   };
 
@@ -127,7 +135,7 @@ function EstadoCarregando() {
 
                 <div className="mt-3 h-3 w-32 rounded bg-zinc-900" />
 
-                <div className="mt-5 h-3 w-56 rounded bg-zinc-900" />
+                <div className="mt-5 h-16 w-full rounded bg-zinc-900" />
               </div>
 
               <div className="h-5 w-24 rounded bg-zinc-800" />
@@ -143,7 +151,7 @@ function EstadoVazio() {
   return (
     <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/60 px-6 py-16 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900 text-2xl">
-        ◆
+        ⚽
       </div>
 
       <h3 className="mt-5 text-lg font-bold text-white">
@@ -151,15 +159,59 @@ function EstadoVazio() {
       </h3>
 
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">
-        Cadastre sua primeira aposta ou altere os
+        Cadastre uma nova aposta ou altere os
         filtros utilizados.
       </p>
     </div>
   );
 }
 
+function Confronto({
+  timeCasa,
+  timeVisitante,
+}: {
+  timeCasa: string | null;
+  timeVisitante: string | null;
+}) {
+  if (!timeCasa && !timeVisitante) {
+    return (
+      <p className="text-sm text-zinc-600">
+        Confronto não informado
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+      <div className="flex-1 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          Primeiro time
+        </p>
+
+        <p className="mt-2 break-words font-bold text-white">
+          {timeCasa || "Não informado"}
+        </p>
+      </div>
+
+      <span className="self-center text-sm font-bold text-red-500">
+        X
+      </span>
+
+      <div className="flex-1 rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          Segundo time
+        </p>
+
+        <p className="mt-2 break-words font-bold text-white">
+          {timeVisitante || "Não informado"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ListaApostas({
-  apostas,
+  apostas = [],
   carregando = false,
   processandoId = null,
   onEditar,
@@ -203,7 +255,7 @@ export default function ListaApostas({
 
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="truncate text-lg font-bold text-white">
+                    <h3 className="break-words text-lg font-bold text-white">
                       {aposta.descricao}
                     </h3>
 
@@ -218,6 +270,9 @@ export default function ListaApostas({
 
                   <p className="mt-2 text-sm text-zinc-500">
                     {aposta.modalidade}
+                    {aposta.competicao
+                      ? ` • ${aposta.competicao}`
+                      : ""}
                     {aposta.casa_aposta
                       ? ` • ${aposta.casa_aposta}`
                       : ""}
@@ -257,6 +312,35 @@ export default function ListaApostas({
                   Odd {formatarOdd(aposta.odd)}
                 </p>
               </div>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-zinc-800 bg-black p-4">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                    Confronto
+                  </p>
+
+                  {aposta.competicao && (
+                    <p className="mt-1 text-sm font-semibold text-red-400">
+                      {aposta.competicao}
+                    </p>
+                  )}
+                </div>
+
+                <p className="text-sm text-zinc-500">
+                  {formatarData(
+                    aposta.data_aposta
+                  )}
+                </p>
+              </div>
+
+              <Confronto
+                timeCasa={aposta.time_casa}
+                timeVisitante={
+                  aposta.time_visitante
+                }
+              />
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -300,21 +384,7 @@ export default function ListaApostas({
                 </p>
 
                 <p
-                  className={`mt-2 text-sm font-semibold ${
-                    configuracaoResultado.classes.includes(
-                      "emerald"
-                    )
-                      ? "text-emerald-400"
-                      : configuracaoResultado.classes.includes(
-                            "red"
-                          )
-                        ? "text-red-400"
-                        : configuracaoResultado.classes.includes(
-                              "amber"
-                            )
-                          ? "text-amber-400"
-                          : "text-zinc-300"
-                  }`}
+                  className={`mt-2 text-sm font-semibold ${configuracaoResultado.textoResultado}`}
                 >
                   {
                     configuracaoResultado.texto
@@ -324,13 +394,12 @@ export default function ListaApostas({
 
               <div className="rounded-xl border border-zinc-800 bg-black p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                  Data da aposta
+                  Casa de aposta
                 </p>
 
-                <p className="mt-2 text-sm font-semibold text-zinc-300">
-                  {formatarData(
-                    aposta.data_aposta
-                  )}
+                <p className="mt-2 break-words text-sm font-semibold text-zinc-300">
+                  {aposta.casa_aposta ||
+                    "Não informada"}
                 </p>
               </div>
             </div>

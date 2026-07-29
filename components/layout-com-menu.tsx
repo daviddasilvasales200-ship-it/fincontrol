@@ -55,6 +55,11 @@ const itensMenu: ItemMenu[] = [
   icone: "📈",
   href: "/investimentos",
 },
+{
+  nome: "Dicas de entradas",
+  icone: "💡",
+  href: "/dicas",
+},
 ];
 
 export default function LayoutComMenu({

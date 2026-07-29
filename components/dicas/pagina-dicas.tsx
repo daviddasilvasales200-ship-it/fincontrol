@@ -24,6 +24,8 @@ import type {
 type RespostaAtualizacaoDicas = {
   sucesso?: boolean;
   erro?: string;
+  mensagem?: string;
+
   partidasAnalisadas?: number;
   dicasSelecionadas?: number;
   dicasInseridas?: number;
@@ -35,6 +37,22 @@ type RespostaExclusaoDica = {
   sucesso?: boolean;
   erro?: string;
   mensagem?: string;
+};
+
+type RespostaVerificacaoResultados = {
+  sucesso?: boolean;
+  erro?: string;
+  mensagem?: string;
+
+  dicasPendentes?: number;
+  dicasVerificadas?: number;
+  dicasGanhas?: number;
+  dicasPerdidas?: number;
+  dicasAnuladas?: number;
+  dicasAindaPendentes?: number;
+  dicasSemPartida?: number;
+  dicasSemEstatistica?: number;
+  errosAtualizacao?: number;
 };
 
 export default function PaginaDicas() {
@@ -67,12 +85,19 @@ export default function PaginaDicas() {
     setSomenteDestaques,
   ] = useState(false);
 
-  const [carregando, setCarregando] =
-    useState(true);
+  const [
+    carregando,
+    setCarregando,
+  ] = useState(true);
 
   const [
     atualizandoDicas,
     setAtualizandoDicas,
+  ] = useState(false);
+
+  const [
+    verificandoResultados,
+    setVerificandoResultados,
   ] = useState(false);
 
   const [
@@ -102,7 +127,8 @@ export default function PaginaDicas() {
         const {
           data: usuarioData,
           error: usuarioError,
-        } = await supabase.auth.getUser();
+        } =
+          await supabase.auth.getUser();
 
         if (usuarioError) {
           throw usuarioError;
@@ -114,157 +140,180 @@ export default function PaginaDicas() {
           );
         }
 
-        const { data, error } =
-          await supabase
-            .from("dicas_apostas")
-            .select(
-              `
-                id,
-                user_id,
-                esporte,
-                competicao,
-                time_casa,
-                time_visitante,
-                data_jogo,
-                horario_jogo,
-                mercado,
-                entrada_sugerida,
-                odd,
-                probabilidade_estimada,
-                nivel_confianca,
-                justificativa,
-                fonte_dados,
-                status,
-                resultado,
-                lucro_prejuizo,
-                destaque,
-                publicada_em,
-                atualizada_em,
-                created_at
-              `
-            )
-            .order("destaque", {
-              ascending: false,
-            })
-            .order("data_jogo", {
-              ascending: true,
-            })
-            .order("horario_jogo", {
-              ascending: true,
-              nullsFirst: false,
-            })
-            .order("publicada_em", {
-              ascending: false,
-            });
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("dicas_apostas")
+          .select(
+            `
+              id,
+              user_id,
+              esporte,
+              competicao,
+              time_casa,
+              time_visitante,
+              data_jogo,
+              horario_jogo,
+              mercado,
+              entrada_sugerida,
+              odd,
+              probabilidade_estimada,
+              nivel_confianca,
+              justificativa,
+              fonte_dados,
+              status,
+              resultado,
+              lucro_prejuizo,
+              destaque,
+              publicada_em,
+              atualizada_em,
+              created_at
+            `
+          )
+          .order("destaque", {
+            ascending: false,
+          })
+          .order("data_jogo", {
+            ascending: true,
+          })
+          .order("horario_jogo", {
+            ascending: true,
+            nullsFirst: false,
+          })
+          .order("publicada_em", {
+            ascending: false,
+          });
 
         if (error) {
           throw error;
         }
 
-        const registros: DicaAposta[] =
-          (data ?? [])
-            .filter(
-              (dica) =>
-                Number(dica.odd) > 1.01
-            )
-            .map((dica) => ({
-              id: Number(dica.id),
+        const registros:
+          DicaAposta[] = (
+          data ?? []
+        )
+          .filter(
+            (dica) =>
+              Number(dica.odd) >
+              1.01
+          )
+          .map((dica) => ({
+            id:
+              Number(dica.id),
 
-              user_id:
-                dica.user_id
-                  ? String(dica.user_id)
-                  : null,
+            user_id:
+              dica.user_id
+                ? String(
+                    dica.user_id
+                  )
+                : null,
 
-              esporte: String(
+            esporte:
+              String(
                 dica.esporte
               ),
 
-              competicao: String(
+            competicao:
+              String(
                 dica.competicao
               ),
 
-              time_casa: String(
+            time_casa:
+              String(
                 dica.time_casa
               ),
 
-              time_visitante: String(
+            time_visitante:
+              String(
                 dica.time_visitante
               ),
 
-              data_jogo: String(
+            data_jogo:
+              String(
                 dica.data_jogo
               ),
 
-              horario_jogo:
-                dica.horario_jogo
-                  ? String(
-                      dica.horario_jogo
-                    )
-                  : null,
+            horario_jogo:
+              dica.horario_jogo
+                ? String(
+                    dica.horario_jogo
+                  )
+                : null,
 
-              mercado: String(
+            mercado:
+              String(
                 dica.mercado
               ),
 
-              entrada_sugerida: String(
+            entrada_sugerida:
+              String(
                 dica.entrada_sugerida
               ),
 
-              odd: Number(dica.odd),
+            odd:
+              Number(
+                dica.odd
+              ),
 
-              probabilidade_estimada:
-                dica.probabilidade_estimada ===
-                  null ||
-                dica.probabilidade_estimada ===
-                  undefined
-                  ? null
-                  : Number(
-                      dica.probabilidade_estimada
-                    ),
+            probabilidade_estimada:
+              dica.probabilidade_estimada ===
+                null ||
+              dica.probabilidade_estimada ===
+                undefined
+                ? null
+                : Number(
+                    dica.probabilidade_estimada
+                  ),
 
-              nivel_confianca:
-                dica.nivel_confianca as DicaAposta["nivel_confianca"],
+            nivel_confianca:
+              dica.nivel_confianca as DicaAposta["nivel_confianca"],
 
-              justificativa:
-                dica.justificativa
-                  ? String(
-                      dica.justificativa
-                    )
-                  : null,
+            justificativa:
+              dica.justificativa
+                ? String(
+                    dica.justificativa
+                  )
+                : null,
 
-              fonte_dados:
-                dica.fonte_dados
-                  ? String(
-                      dica.fonte_dados
-                    )
-                  : null,
+            fonte_dados:
+              dica.fonte_dados
+                ? String(
+                    dica.fonte_dados
+                  )
+                : null,
 
-              status:
-                dica.status as DicaAposta["status"],
+            status:
+              dica.status as DicaAposta["status"],
 
-              resultado:
-                dica.resultado as DicaAposta["resultado"],
+            resultado:
+              dica.resultado as DicaAposta["resultado"],
 
-              lucro_prejuizo: Number(
+            lucro_prejuizo:
+              Number(
                 dica.lucro_prejuizo
               ),
 
-              destaque: Boolean(
+            destaque:
+              Boolean(
                 dica.destaque
               ),
 
-              publicada_em: String(
+            publicada_em:
+              String(
                 dica.publicada_em
               ),
 
-              atualizada_em: String(
+            atualizada_em:
+              String(
                 dica.atualizada_em
               ),
 
-              created_at: String(
+            created_at:
+              String(
                 dica.created_at
               ),
-            }));
+          }));
 
         setDicas(registros);
       } catch (error) {
@@ -321,18 +370,22 @@ export default function PaginaDicas() {
       return dicas.filter(
         (dica) => {
           const correspondeCompeticao =
-            competicao === "todas" ||
+            competicao ===
+              "todas" ||
             dica.competicao ===
               competicao;
 
           const correspondeConfianca =
-            confianca === "todas" ||
+            confianca ===
+              "todas" ||
             dica.nivel_confianca ===
               confianca;
 
           const correspondeStatus =
-            status === "todos" ||
-            dica.status === status;
+            status ===
+              "todos" ||
+            dica.status ===
+              status;
 
           const correspondeDestaque =
             !somenteDestaques ||
@@ -358,8 +411,10 @@ export default function PaginaDicas() {
             dica.time_visitante,
             dica.mercado,
             dica.entrada_sugerida,
-            dica.justificativa ?? "",
-            dica.fonte_dados ?? "",
+            dica.justificativa ??
+              "",
+            dica.fonte_dados ??
+              "",
           ]
             .join(" ")
             .toLocaleLowerCase(
@@ -382,7 +437,9 @@ export default function PaginaDicas() {
 
   const resumo = useMemo(
     () =>
-      calcularResumoDicas(dicas),
+      calcularResumoDicas(
+        dicas
+      ),
     [dicas]
   );
 
@@ -393,12 +450,18 @@ export default function PaginaDicas() {
     status !== "todos" ||
     somenteDestaques;
 
+  const processandoAcao =
+    atualizandoDicas ||
+    verificandoResultados;
+
   function limparFiltros() {
     setBusca("");
     setCompeticao("todas");
     setConfianca("todas");
     setStatus("todos");
-    setSomenteDestaques(false);
+    setSomenteDestaques(
+      false
+    );
   }
 
   async function atualizarDicas() {
@@ -407,17 +470,18 @@ export default function PaginaDicas() {
     setMensagemAtualizacao("");
 
     try {
-      const resposta = await fetch(
-        "/api/dicas/atualizar",
-        {
-          method: "POST",
+      const resposta =
+        await fetch(
+          "/api/dicas/atualizar",
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
 
       const tipoConteudo =
         resposta.headers.get(
@@ -480,15 +544,28 @@ export default function PaginaDicas() {
         ) || 0;
 
       const alteradas =
-        inseridas + atualizadas;
+        inseridas +
+        atualizadas;
 
-      setMensagemAtualizacao(
+      if (resultado.mensagem) {
+        setMensagemAtualizacao(
+          resultado.mensagem
+        );
+      } else if (
         alteradas > 0
-          ? `${inseridas} nova(s) dica(s) adicionada(s) e ${atualizadas} atualizada(s). ${oddsEncontradas} odd(s) real(is) encontrada(s).`
-          : `Nenhuma dica foi alterada. ${analisadas} partida(s) analisada(s), ${selecionadas} entrada(s) selecionada(s) e ${oddsEncontradas} odd(s) encontrada(s).`
-      );
+      ) {
+        setMensagemAtualizacao(
+          `${inseridas} nova(s) dica(s) adicionada(s) e ${atualizadas} atualizada(s). ${oddsEncontradas} odd(s) real(is) encontrada(s).`
+        );
+      } else {
+        setMensagemAtualizacao(
+          `Nenhuma dica foi alterada. ${analisadas} partida(s) analisada(s), ${selecionadas} entrada(s) selecionada(s) e ${oddsEncontradas} odd(s) encontrada(s).`
+        );
+      }
 
-      await carregarDicas(false);
+      await carregarDicas(
+        false
+      );
     } catch (error) {
       console.error(
         "Erro ao atualizar dicas:",
@@ -501,29 +578,198 @@ export default function PaginaDicas() {
           : "Não foi possível atualizar as dicas."
       );
     } finally {
-      setAtualizandoDicas(false);
+      setAtualizandoDicas(
+        false
+      );
+    }
+  }
+
+  async function verificarResultados() {
+    setVerificandoResultados(
+      true
+    );
+
+    setErro("");
+    setMensagemAtualizacao("");
+
+    try {
+      /*
+       * Esta chamada não contém
+       * CRON_SECRET.
+       *
+       * A rota intermediária segura
+       * verifica o usuário e chama
+       * internamente o cron.
+       */
+      const resposta =
+        await fetch(
+          "/api/dicas/verificar-resultados",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
+
+      const tipoConteudo =
+        resposta.headers.get(
+          "content-type"
+        );
+
+      const textoResposta =
+        await resposta.text();
+
+      if (
+        !tipoConteudo?.includes(
+          "application/json"
+        )
+      ) {
+        console.error(
+          "Resposta inválida da verificação:",
+          textoResposta
+        );
+
+        throw new Error(
+          `A rota de verificação não retornou JSON. Status ${resposta.status}.`
+        );
+      }
+
+      const resultado =
+        JSON.parse(
+          textoResposta
+        ) as RespostaVerificacaoResultados;
+
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.erro ??
+            "Não foi possível verificar os resultados."
+        );
+      }
+
+      const verificadas =
+        Number(
+          resultado.dicasVerificadas
+        ) || 0;
+
+      const ganhas =
+        Number(
+          resultado.dicasGanhas
+        ) || 0;
+
+      const perdidas =
+        Number(
+          resultado.dicasPerdidas
+        ) || 0;
+
+      const anuladas =
+        Number(
+          resultado.dicasAnuladas
+        ) || 0;
+
+      const aindaPendentes =
+        Number(
+          resultado.dicasAindaPendentes
+        ) || 0;
+
+      const semPartida =
+        Number(
+          resultado.dicasSemPartida
+        ) || 0;
+
+      const semEstatistica =
+        Number(
+          resultado.dicasSemEstatistica
+        ) || 0;
+
+      const errosAtualizacao =
+        Number(
+          resultado.errosAtualizacao
+        ) || 0;
+
+      if (resultado.mensagem) {
+        setMensagemAtualizacao(
+          resultado.mensagem
+        );
+      } else if (
+        verificadas > 0
+      ) {
+        setMensagemAtualizacao(
+          `${verificadas} dica(s) verificada(s): ${ganhas} ganha(s), ${perdidas} perdida(s) e ${anuladas} anulada(s).`
+        );
+      } else if (
+        aindaPendentes > 0
+      ) {
+        setMensagemAtualizacao(
+          `Nenhum resultado final disponível. ${aindaPendentes} dica(s) ainda está(ão) pendente(s).`
+        );
+      } else if (
+        semPartida > 0 ||
+        semEstatistica > 0
+      ) {
+        setMensagemAtualizacao(
+          `Nenhuma dica foi concluída. ${semPartida} ficou(aram) sem partida localizada e ${semEstatistica} sem estatísticas completas.`
+        );
+      } else {
+        setMensagemAtualizacao(
+          "Não existem resultados pendentes para verificar."
+        );
+      }
+
+      if (
+        errosAtualizacao > 0
+      ) {
+        setErro(
+          `${errosAtualizacao} resultado(s) não puderam ser salvo(s).`
+        );
+      }
+
+      await carregarDicas(
+        false
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao verificar resultados:",
+        error
+      );
+
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível verificar os resultados."
+      );
+    } finally {
+      setVerificandoResultados(
+        false
+      );
     }
   }
 
   async function excluirDica(
     dica: DicaAposta
   ) {
-    setProcessandoId(dica.id);
+    setProcessandoId(
+      dica.id
+    );
+
     setErro("");
     setMensagemAtualizacao("");
 
     try {
-      const resposta = await fetch(
-        `/api/dicas/${dica.id}`,
-        {
-          method: "DELETE",
+      const resposta =
+        await fetch(
+          `/api/dicas/${dica.id}`,
+          {
+            method: "DELETE",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-        }
-      );
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
 
       const tipoConteudo =
         resposta.headers.get(
@@ -564,7 +810,8 @@ export default function PaginaDicas() {
         (estadoAtual) =>
           estadoAtual.filter(
             (item) =>
-              item.id !== dica.id
+              item.id !==
+              dica.id
           )
       );
 
@@ -602,46 +849,78 @@ export default function PaginaDicas() {
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Consulte oportunidades baseadas
-              em dados, probabilidades e
-              análise estatística dos
-              confrontos.
+              Consulte oportunidades
+              baseadas em dados,
+              probabilidades e análise
+              estatística dos confrontos.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() =>
-              void atualizarDicas()
-            }
-            disabled={
-              carregando ||
-              atualizandoDicas
-            }
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span
-              aria-hidden="true"
-              className={
-                atualizandoDicas
-                  ? "animate-spin"
-                  : ""
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() =>
+                void verificarResultados()
               }
+              disabled={
+                carregando ||
+                processandoAcao
+              }
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-900/70 bg-emerald-950/30 px-5 py-3 text-sm font-semibold text-emerald-400 transition hover:border-emerald-700 hover:bg-emerald-950/50 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              ↻
-            </span>
+              <span
+                aria-hidden="true"
+                className={
+                  verificandoResultados
+                    ? "animate-spin"
+                    : ""
+                }
+              >
+                {verificandoResultados
+                  ? "◌"
+                  : "✓"}
+              </span>
 
-            {atualizandoDicas
-              ? "Buscando novas dicas..."
-              : "Atualizar dicas"}
-          </button>
+              {verificandoResultados
+                ? "Verificando resultados..."
+                : "Verificar resultados"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                void atualizarDicas()
+              }
+              disabled={
+                carregando ||
+                processandoAcao
+              }
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span
+                aria-hidden="true"
+                className={
+                  atualizandoDicas
+                    ? "animate-spin"
+                    : ""
+                }
+              >
+                ↻
+              </span>
+
+              {atualizandoDicas
+                ? "Buscando novas dicas..."
+                : "Atualizar dicas"}
+            </button>
+          </div>
         </header>
 
         <div className="mt-6 rounded-2xl border border-amber-900/40 bg-amber-950/20 px-5 py-4 text-sm leading-6 text-amber-300/80">
-          As dicas são baseadas em análise
-          estatística e não garantem lucro ou
-          acerto. Aposte com responsabilidade
-          e utilize apenas valores que não
+          As dicas são baseadas em
+          análise estatística e não
+          garantem lucro ou acerto.
+          Aposte com responsabilidade e
+          utilize apenas valores que não
           comprometam seu orçamento.
         </div>
 
@@ -726,9 +1005,7 @@ export default function PaginaDicas() {
 
           <CardResumoDica
             titulo="Dicas perdidas"
-            quantidade={
-              resumo.perdidas
-            }
+            quantidade={resumo.perdidas}
             descricao="Resultados negativos registrados"
             icone="✕"
             destaque="negativo"
@@ -736,9 +1013,7 @@ export default function PaginaDicas() {
 
           <CardResumoDica
             titulo="Taxa de acerto"
-            percentual={
-              resumo.taxaAcerto
-            }
+            percentual={resumo.taxaAcerto}
             descricao="Considera ganhas e perdidas"
             icone="%"
             destaque={
@@ -887,12 +1162,8 @@ export default function PaginaDicas() {
             <div className="flex items-end">
               <button
                 type="button"
-                onClick={
-                  limparFiltros
-                }
-                disabled={
-                  !possuiFiltros
-                }
+                onClick={limparFiltros}
+                disabled={!possuiFiltros}
                 className="w-full rounded-xl border border-zinc-700 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 xl:w-auto"
               >
                 Limpar
@@ -903,9 +1174,7 @@ export default function PaginaDicas() {
           <label className="mt-5 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-black px-4 py-3">
             <input
               type="checkbox"
-              checked={
-                somenteDestaques
-              }
+              checked={somenteDestaques}
               onChange={(event) =>
                 setSomenteDestaques(
                   event.target.checked
@@ -929,9 +1198,7 @@ export default function PaginaDicas() {
               </h2>
 
               <p className="mt-1 text-sm text-zinc-500">
-                {
-                  dicasFiltradas.length
-                }{" "}
+                {dicasFiltradas.length}{" "}
                 {dicasFiltradas.length ===
                 1
                   ? "dica encontrada"

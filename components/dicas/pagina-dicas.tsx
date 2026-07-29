@@ -7,8 +7,13 @@ import {
   useState,
 } from "react";
 
+import CardCotaApi, {
+  type DadosCotaApi,
+} from "@/components/dicas/card-cota-api";
+
 import CardResumoDica from "@/components/dicas/card-resumo-dica";
 import ListaDicas from "@/components/dicas/lista-dicas";
+
 import { createClient } from "@/lib/supabase/client";
 
 import {
@@ -30,7 +35,10 @@ type RespostaAtualizacaoDicas = {
   dicasSelecionadas?: number;
   dicasInseridas?: number;
   dicasAtualizadas?: number;
+
   oddsEncontradas?: number;
+  consultasOdds?: number;
+  mercadosEncontrados?: number;
 };
 
 type RespostaExclusaoDica = {
@@ -53,6 +61,11 @@ type RespostaVerificacaoResultados = {
   dicasSemPartida?: number;
   dicasSemEstatistica?: number;
   errosAtualizacao?: number;
+};
+
+type RespostaErroApi = {
+  sucesso?: boolean;
+  erro?: string;
 };
 
 export default function PaginaDicas() {
@@ -104,6 +117,23 @@ export default function PaginaDicas() {
     processandoId,
     setProcessandoId,
   ] = useState<number | null>(null);
+
+  const [
+    cotaApi,
+    setCotaApi,
+  ] = useState<DadosCotaApi | null>(
+    null
+  );
+
+  const [
+    carregandoCota,
+    setCarregandoCota,
+  ] = useState(true);
+
+  const [
+    erroCota,
+    setErroCota,
+  ] = useState("");
 
   const [erro, setErro] =
     useState("");
@@ -336,9 +366,106 @@ export default function PaginaDicas() {
     [supabase]
   );
 
+  const carregarCota = useCallback(
+    async (
+      mostrarCarregamento = true
+    ) => {
+      if (mostrarCarregamento) {
+        setCarregandoCota(true);
+      }
+
+      setErroCota("");
+
+      try {
+        const resposta =
+          await fetch(
+            "/api/dicas/cota-api",
+            {
+              method: "GET",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              cache: "no-store",
+            }
+          );
+
+        const tipoConteudo =
+          resposta.headers.get(
+            "content-type"
+          );
+
+        const textoResposta =
+          await resposta.text();
+
+        if (
+          !tipoConteudo?.includes(
+            "application/json"
+          )
+        ) {
+          console.error(
+            "Resposta inválida da cota:",
+            textoResposta
+          );
+
+          throw new Error(
+            `A rota de cota não retornou JSON. Status ${resposta.status}.`
+          );
+        }
+
+        const resultado =
+          JSON.parse(
+            textoResposta
+          ) as
+            | DadosCotaApi
+            | RespostaErroApi;
+
+        if (
+          !resposta.ok ||
+          !resultado.sucesso
+        ) {
+          const mensagemErro =
+            "erro" in resultado &&
+            typeof resultado.erro ===
+              "string"
+              ? resultado.erro
+              : "Não foi possível consultar a cota da API.";
+
+          throw new Error(
+            mensagemErro
+          );
+        }
+
+        setCotaApi(
+          resultado as DadosCotaApi
+        );
+      } catch (error) {
+        console.error(
+          "Erro ao carregar cota:",
+          error
+        );
+
+        setErroCota(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível consultar a cota da API."
+        );
+      } finally {
+        setCarregandoCota(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     void carregarDicas();
-  }, [carregarDicas]);
+    void carregarCota();
+  }, [
+    carregarDicas,
+    carregarCota,
+  ]);
 
   const competicoesDisponiveis =
     useMemo(() => {
@@ -454,6 +581,15 @@ export default function PaginaDicas() {
     atualizandoDicas ||
     verificandoResultados;
 
+  const cotaEsgotada =
+    cotaApi?.statusCota ===
+      "esgotada" ||
+    (
+      cotaApi !== null &&
+      cotaApi.limiteDiario > 0 &&
+      cotaApi.restantesHoje <= 0
+    );
+
   function limparFiltros() {
     setBusca("");
     setCompeticao("todas");
@@ -465,6 +601,14 @@ export default function PaginaDicas() {
   }
 
   async function atualizarDicas() {
+    if (cotaEsgotada) {
+      setErro(
+        "A cota diária da API-Football está esgotada."
+      );
+
+      return;
+    }
+
     setAtualizandoDicas(true);
     setErro("");
     setMensagemAtualizacao("");
@@ -540,7 +684,13 @@ export default function PaginaDicas() {
 
       const oddsEncontradas =
         Number(
-          resultado.oddsEncontradas
+          resultado.oddsEncontradas ??
+            resultado.consultasOdds
+        ) || 0;
+
+      const mercadosEncontrados =
+        Number(
+          resultado.mercadosEncontrados
         ) || 0;
 
       const alteradas =
@@ -555,17 +705,15 @@ export default function PaginaDicas() {
         alteradas > 0
       ) {
         setMensagemAtualizacao(
-          `${inseridas} nova(s) dica(s) adicionada(s) e ${atualizadas} atualizada(s). ${oddsEncontradas} odd(s) real(is) encontrada(s).`
+          `${inseridas} nova(s) dica(s) adicionada(s) e ${atualizadas} atualizada(s). ${mercadosEncontrados} mercado(s) de odds encontrado(s).`
         );
       } else {
         setMensagemAtualizacao(
-          `Nenhuma dica foi alterada. ${analisadas} partida(s) analisada(s), ${selecionadas} entrada(s) selecionada(s) e ${oddsEncontradas} odd(s) encontrada(s).`
+          `Nenhuma dica foi alterada. ${analisadas} partida(s) analisada(s), ${selecionadas} entrada(s) selecionada(s) e ${oddsEncontradas} consulta(s) de odds realizada(s).`
         );
       }
 
-      await carregarDicas(
-        false
-      );
+      await carregarDicas(false);
     } catch (error) {
       console.error(
         "Erro ao atualizar dicas:",
@@ -581,10 +729,20 @@ export default function PaginaDicas() {
       setAtualizandoDicas(
         false
       );
+
+      await carregarCota(false);
     }
   }
 
   async function verificarResultados() {
+    if (cotaEsgotada) {
+      setErro(
+        "A cota diária da API-Football está esgotada."
+      );
+
+      return;
+    }
+
     setVerificandoResultados(
       true
     );
@@ -593,14 +751,6 @@ export default function PaginaDicas() {
     setMensagemAtualizacao("");
 
     try {
-      /*
-       * Esta chamada não contém
-       * CRON_SECRET.
-       *
-       * A rota intermediária segura
-       * verifica o usuário e chama
-       * internamente o cron.
-       */
       const resposta =
         await fetch(
           "/api/dicas/verificar-resultados",
@@ -744,6 +894,8 @@ export default function PaginaDicas() {
       setVerificandoResultados(
         false
       );
+
+      await carregarCota(false);
     }
   }
 
@@ -864,7 +1016,13 @@ export default function PaginaDicas() {
               }
               disabled={
                 carregando ||
-                processandoAcao
+                processandoAcao ||
+                cotaEsgotada
+              }
+              title={
+                cotaEsgotada
+                  ? "Cota diária esgotada"
+                  : "Verificar resultados das dicas"
               }
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-900/70 bg-emerald-950/30 px-5 py-3 text-sm font-semibold text-emerald-400 transition hover:border-emerald-700 hover:bg-emerald-950/50 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -883,7 +1041,9 @@ export default function PaginaDicas() {
 
               {verificandoResultados
                 ? "Verificando resultados..."
-                : "Verificar resultados"}
+                : cotaEsgotada
+                  ? "Cota esgotada"
+                  : "Verificar resultados"}
             </button>
 
             <button
@@ -893,7 +1053,13 @@ export default function PaginaDicas() {
               }
               disabled={
                 carregando ||
-                processandoAcao
+                processandoAcao ||
+                cotaEsgotada
+              }
+              title={
+                cotaEsgotada
+                  ? "Cota diária esgotada"
+                  : "Buscar novas dicas"
               }
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -910,7 +1076,9 @@ export default function PaginaDicas() {
 
               {atualizandoDicas
                 ? "Buscando novas dicas..."
-                : "Atualizar dicas"}
+                : cotaEsgotada
+                  ? "Cota esgotada"
+                  : "Atualizar dicas"}
             </button>
           </div>
         </header>
@@ -968,6 +1136,19 @@ export default function PaginaDicas() {
           </div>
         )}
 
+        <div className="mt-8">
+          <CardCotaApi
+            dados={cotaApi}
+            carregando={
+              carregandoCota
+            }
+            erro={erroCota}
+            onAtualizar={
+              carregarCota
+            }
+          />
+        </div>
+
         <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <CardResumoDica
             titulo="Total de dicas"
@@ -997,7 +1178,9 @@ export default function PaginaDicas() {
 
           <CardResumoDica
             titulo="Dicas ganhas"
-            quantidade={resumo.ganhas}
+            quantidade={
+              resumo.ganhas
+            }
             descricao="Resultados positivos registrados"
             icone="✓"
             destaque="positivo"
@@ -1005,7 +1188,9 @@ export default function PaginaDicas() {
 
           <CardResumoDica
             titulo="Dicas perdidas"
-            quantidade={resumo.perdidas}
+            quantidade={
+              resumo.perdidas
+            }
             descricao="Resultados negativos registrados"
             icone="✕"
             destaque="negativo"
@@ -1013,13 +1198,16 @@ export default function PaginaDicas() {
 
           <CardResumoDica
             titulo="Taxa de acerto"
-            percentual={resumo.taxaAcerto}
+            percentual={
+              resumo.taxaAcerto
+            }
             descricao="Considera ganhas e perdidas"
             icone="%"
             destaque={
               resumo.taxaAcerto >= 60
                 ? "positivo"
-                : resumo.taxaAcerto > 0
+                : resumo.taxaAcerto >
+                    0
                   ? "atencao"
                   : "neutro"
             }
@@ -1163,7 +1351,9 @@ export default function PaginaDicas() {
               <button
                 type="button"
                 onClick={limparFiltros}
-                disabled={!possuiFiltros}
+                disabled={
+                  !possuiFiltros
+                }
                 className="w-full rounded-xl border border-zinc-700 px-4 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40 xl:w-auto"
               >
                 Limpar
@@ -1174,7 +1364,9 @@ export default function PaginaDicas() {
           <label className="mt-5 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-black px-4 py-3">
             <input
               type="checkbox"
-              checked={somenteDestaques}
+              checked={
+                somenteDestaques
+              }
               onChange={(event) =>
                 setSomenteDestaques(
                   event.target.checked
@@ -1198,7 +1390,9 @@ export default function PaginaDicas() {
               </h2>
 
               <p className="mt-1 text-sm text-zinc-500">
-                {dicasFiltradas.length}{" "}
+                {
+                  dicasFiltradas.length
+                }{" "}
                 {dicasFiltradas.length ===
                 1
                   ? "dica encontrada"
@@ -1213,10 +1407,18 @@ export default function PaginaDicas() {
           </div>
 
           <ListaDicas
-            dicas={dicasFiltradas}
-            carregando={carregando}
-            processandoId={processandoId}
-            onExcluir={excluirDica}
+            dicas={
+              dicasFiltradas
+            }
+            carregando={
+              carregando
+            }
+            processandoId={
+              processandoId
+            }
+            onExcluir={
+              excluirDica
+            }
           />
         </section>
       </div>

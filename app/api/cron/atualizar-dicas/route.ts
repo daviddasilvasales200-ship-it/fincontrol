@@ -299,8 +299,28 @@ const LIMITE_DICAS_PUBLICADAS =
 const LIMITE_DICAS_POR_PARTIDA =
   2;
 
-const LIMITE_DICAS_POR_CATEGORIA =
-  3;
+const LIMITES_POR_CATEGORIA:
+  Record<
+    CategoriaMercado,
+    number
+  > = {
+  resultado: 2,
+  dupla: 2,
+  gols: 2,
+  ambas: 1,
+  escanteios: 1,
+  cartoes: 1,
+};
+
+const ORDEM_DIVERSIDADE:
+  CategoriaMercado[] = [
+  "resultado",
+  "dupla",
+  "gols",
+  "ambas",
+  "escanteios",
+  "cartoes",
+];
 
 const ODD_MINIMA = 1.35;
 const ODD_MAXIMA = 3.5;
@@ -459,25 +479,40 @@ function extrairNumero(
 function obterDataBrasilia(
   adicionarDias = 0
 ) {
-  const data =
+  const agora =
     new Date();
 
-  data.setDate(
-    data.getDate() +
+  const dataBrasilia =
+    new Date(
+      agora.toLocaleString(
+        "en-US",
+        {
+          timeZone:
+            "America/Sao_Paulo",
+        }
+      )
+    );
+
+  dataBrasilia.setDate(
+    dataBrasilia.getDate() +
       adicionarDias
   );
 
-  return new Intl.DateTimeFormat(
-    "en-CA",
-    {
-      timeZone:
-        "America/Sao_Paulo",
+  const ano =
+    dataBrasilia.getFullYear();
 
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }
-  ).format(data);
+  const mes =
+    String(
+      dataBrasilia.getMonth() +
+        1
+    ).padStart(2, "0");
+
+  const dia =
+    String(
+      dataBrasilia.getDate()
+    ).padStart(2, "0");
+
+  return `${ano}-${mes}-${dia}`;
 }
 
 function formatarDataHora(
@@ -1677,6 +1712,16 @@ function selecionarDicasFinais(
     ...dicas,
   ].sort((a, b) => {
     if (
+      b.pontuacao !==
+      a.pontuacao
+    ) {
+      return (
+        b.pontuacao -
+        a.pontuacao
+      );
+    }
+
+    if (
       a.prioridadeCompeticao !==
       b.prioridadeCompeticao
     ) {
@@ -1686,9 +1731,19 @@ function selecionarDicasFinais(
       );
     }
 
+    if (
+      b.probabilidade_estimada !==
+      a.probabilidade_estimada
+    ) {
+      return (
+        b.probabilidade_estimada -
+        a.probabilidade_estimada
+      );
+    }
+
     return (
-      b.pontuacao -
-      a.pontuacao
+      a.odd -
+      b.odd
     );
   });
 
@@ -1707,9 +1762,150 @@ function selecionarDicasFinais(
       number
     >();
 
-  const chaves =
+  const chavesSelecionadas =
     new Set<string>();
 
+  function criarChave(
+    dica:
+      DicaSelecionada
+  ) {
+    return [
+      dica.fixtureId,
+      dica.mercado,
+      normalizarTexto(
+        dica.entrada_sugerida
+      ),
+    ].join("|");
+  }
+
+  function podeSelecionar(
+    dica:
+      DicaSelecionada
+  ) {
+    if (
+      selecionadas.length >=
+      LIMITE_DICAS_PUBLICADAS
+    ) {
+      return false;
+    }
+
+    const limiteCategoria =
+      LIMITES_POR_CATEGORIA[
+        dica.categoria
+      ];
+
+    const totalCategoria =
+      quantidadePorCategoria.get(
+        dica.categoria
+      ) ?? 0;
+
+    if (
+      totalCategoria >=
+      limiteCategoria
+    ) {
+      return false;
+    }
+
+    const totalPartida =
+      quantidadePorPartida.get(
+        dica.fixtureId
+      ) ?? 0;
+
+    if (
+      totalPartida >=
+      LIMITE_DICAS_POR_PARTIDA
+    ) {
+      return false;
+    }
+
+    const chave =
+      criarChave(dica);
+
+    if (
+      chavesSelecionadas.has(
+        chave
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function adicionarDica(
+    dica:
+      DicaSelecionada
+  ) {
+    const chave =
+      criarChave(dica);
+
+    selecionadas.push(
+      dica
+    );
+
+    chavesSelecionadas.add(
+      chave
+    );
+
+    const totalPartida =
+      quantidadePorPartida.get(
+        dica.fixtureId
+      ) ?? 0;
+
+    quantidadePorPartida.set(
+      dica.fixtureId,
+      totalPartida + 1
+    );
+
+    const totalCategoria =
+      quantidadePorCategoria.get(
+        dica.categoria
+      ) ?? 0;
+
+    quantidadePorCategoria.set(
+      dica.categoria,
+      totalCategoria + 1
+    );
+  }
+
+  /*
+   * Primeira etapa:
+   * adiciona a melhor dica de cada
+   * categoria disponível.
+   */
+  for (
+    const categoria of
+    ORDEM_DIVERSIDADE
+  ) {
+    if (
+      selecionadas.length >=
+      LIMITE_DICAS_PUBLICADAS
+    ) {
+      break;
+    }
+
+    const melhorDaCategoria =
+      ordenadas.find(
+        (dica) =>
+          dica.categoria ===
+            categoria &&
+          podeSelecionar(dica)
+      );
+
+    if (
+      melhorDaCategoria
+    ) {
+      adicionarDica(
+        melhorDaCategoria
+      );
+    }
+  }
+
+  /*
+   * Segunda etapa:
+   * completa as vagas com as dicas
+   * de maior pontuação.
+   */
   for (
     const dica of
     ordenadas
@@ -1721,54 +1917,47 @@ function selecionarDicasFinais(
       break;
     }
 
-    const totalPartida =
-      quantidadePorPartida.get(
-        dica.fixtureId
-      ) ?? 0;
-
-    const totalCategoria =
-      quantidadePorCategoria.get(
-        dica.categoria
-      ) ?? 0;
-
     if (
-      totalPartida >=
-        LIMITE_DICAS_POR_PARTIDA ||
-      totalCategoria >=
-        LIMITE_DICAS_POR_CATEGORIA
+      !podeSelecionar(
+        dica
+      )
     ) {
       continue;
     }
 
-    const chave =
-      `${dica.fixtureId}|${dica.mercado}|${normalizarTexto(
-        dica.entrada_sugerida
-      )}`;
-
-    if (
-      chaves.has(chave)
-    ) {
-      continue;
-    }
-
-    chaves.add(chave);
-
-    selecionadas.push(
+    adicionarDica(
       dica
-    );
-
-    quantidadePorPartida.set(
-      dica.fixtureId,
-      totalPartida + 1
-    );
-
-    quantidadePorCategoria.set(
-      dica.categoria,
-      totalCategoria + 1
     );
   }
 
-  return selecionadas;
+  return selecionadas.sort(
+    (a, b) => {
+      const dataHoraA =
+        new Date(
+          `${a.data_jogo}T${a.horario_jogo}:00-03:00`
+        ).getTime();
+
+      const dataHoraB =
+        new Date(
+          `${b.data_jogo}T${b.horario_jogo}:00-03:00`
+        ).getTime();
+
+      if (
+        dataHoraA !==
+        dataHoraB
+      ) {
+        return (
+          dataHoraA -
+          dataHoraB
+        );
+      }
+
+      return (
+        a.prioridadeCompeticao -
+        b.prioridadeCompeticao
+      );
+    }
+  );
 }
 
 export async function GET(
@@ -2095,6 +2284,33 @@ export async function GET(
         candidatos
       );
 
+    const distribuicaoMercados =
+      dicasSelecionadas.reduce<
+        Record<
+          CategoriaMercado,
+          number
+        >
+      >(
+        (
+          acumulador,
+          dica
+        ) => {
+          acumulador[
+            dica.categoria
+          ] += 1;
+
+          return acumulador;
+        },
+        {
+          resultado: 0,
+          dupla: 0,
+          gols: 0,
+          ambas: 0,
+          escanteios: 0,
+          cartoes: 0,
+        }
+      );
+
     const supabase =
       createAdminClient();
 
@@ -2346,6 +2562,11 @@ export async function GET(
       dicasSelecionadas:
         dicasSelecionadas.length,
 
+      distribuicaoMercados,
+
+      limitesMercados:
+        LIMITES_POR_CATEGORIA,
+
       dicasInseridas,
 
       dicasAtualizadas,
@@ -2365,6 +2586,9 @@ export async function GET(
             confronto:
               `${dica.time_casa} x ${dica.time_visitante}`,
 
+            categoria:
+              dica.categoria,
+
             mercado:
               dica.mercado,
 
@@ -2376,6 +2600,9 @@ export async function GET(
 
             probabilidade:
               dica.probabilidade_estimada,
+
+            confianca:
+              dica.nivel_confianca,
 
             fonte:
               dica.fonte_dados,

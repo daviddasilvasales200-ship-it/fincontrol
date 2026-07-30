@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import Link from "next/link";
+
 import CardCotaApi, {
   type DadosCotaApi,
 } from "@/components/dicas/card-cota-api";
@@ -1069,7 +1071,18 @@ export default function PaginaDicas() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+            <Link
+              href="/historico-dicas"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-900/70 bg-blue-950/30 px-5 py-3 text-sm font-semibold text-blue-400 transition hover:border-blue-700 hover:bg-blue-950/50 hover:text-blue-300"
+            >
+              <span aria-hidden="true">
+                ◫
+              </span>
+
+              Histórico de entradas
+            </Link>
+
             <button
               type="button"
               onClick={() =>

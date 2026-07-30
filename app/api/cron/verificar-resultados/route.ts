@@ -20,7 +20,6 @@ type ErrosApi =
 
 type EstatisticaApi = {
   type: string;
-
   value:
     | number
     | string
@@ -45,7 +44,6 @@ type PartidaResultadoApi = {
     status: {
       long: string;
       short: string;
-
       elapsed:
         | number
         | null;
@@ -62,7 +60,6 @@ type PartidaResultadoApi = {
     home: {
       id: number;
       name: string;
-
       winner:
         | boolean
         | null;
@@ -71,7 +68,6 @@ type PartidaResultadoApi = {
     away: {
       id: number;
       name: string;
-
       winner:
         | boolean
         | null;
@@ -176,7 +172,6 @@ type DicaPendenteBanco = {
 
 type DadosResultadoPartida = {
   fixtureId: number;
-
   status: string;
 
   golsCasa: number;
@@ -200,7 +195,6 @@ type AvaliacaoDica = {
     ResultadoDica;
 
   lucroPrejuizo: number;
-
   motivo: string;
 };
 
@@ -221,8 +215,14 @@ type DetalheProcessamento = {
 const URL_API =
   "https://v3.football.api-sports.io";
 
-const LIMITE_PARTIDAS_POR_CONSULTA =
-  20;
+const LIMITE_PARTIDAS_VERIFICADAS =
+  8;
+
+const LIMITE_DATAS_PARA_CORRIGIR_FIXTURE =
+  3;
+
+const INTERVALO_REQUISICOES_MS =
+  7000;
 
 const STATUS_FINALIZADOS =
   new Set([
@@ -239,6 +239,19 @@ const STATUS_ANULADOS =
     "SUSP",
     "INT",
   ]);
+
+function aguardar(
+  milissegundos: number
+) {
+  return new Promise<void>(
+    (resolver) => {
+      setTimeout(
+        resolver,
+        milissegundos
+      );
+    }
+  );
+}
 
 function requisicaoAutorizada(
   request: NextRequest
@@ -302,6 +315,121 @@ function normalizarTexto(
       /\s+/g,
       " "
     );
+}
+
+
+function nomesTimesCorrespondem(
+  nomeBanco: string,
+  nomeApi: string
+) {
+  const banco =
+    normalizarTexto(nomeBanco);
+
+  const api =
+    normalizarTexto(nomeApi);
+
+  if (!banco || !api) {
+    return false;
+  }
+
+  if (
+    banco === api ||
+    banco.includes(api) ||
+    api.includes(banco)
+  ) {
+    return true;
+  }
+
+  const palavrasIgnoradas =
+    new Set([
+      "fc",
+      "sc",
+      "ac",
+      "ec",
+      "cf",
+      "club",
+      "clube",
+      "futebol",
+      "esporte",
+      "de",
+      "da",
+      "do",
+      "das",
+      "dos",
+    ]);
+
+  const palavrasBanco =
+    banco
+      .split(" ")
+      .filter(
+        (palavra) =>
+          palavra.length >= 4 &&
+          !palavrasIgnoradas.has(
+            palavra
+          )
+      );
+
+  const palavrasApi =
+    api
+      .split(" ")
+      .filter(
+        (palavra) =>
+          palavra.length >= 4 &&
+          !palavrasIgnoradas.has(
+            palavra
+          )
+      );
+
+  if (
+    palavrasBanco.length === 0 ||
+    palavrasApi.length === 0
+  ) {
+    return false;
+  }
+
+  return palavrasBanco.some(
+    (palavraBanco) =>
+      palavrasApi.some(
+        (palavraApi) =>
+          palavraBanco === palavraApi ||
+          palavraBanco.includes(
+            palavraApi
+          ) ||
+          palavraApi.includes(
+            palavraBanco
+          )
+      )
+  );
+}
+
+function partidaCorrespondeDica(
+  partida: PartidaResultadoApi,
+  dica: DicaPendenteBanco
+) {
+  const ordemNormal =
+    nomesTimesCorrespondem(
+      dica.time_casa,
+      partida.teams.home.name
+    ) &&
+    nomesTimesCorrespondem(
+      dica.time_visitante,
+      partida.teams.away.name
+    );
+
+  const ordemInvertida =
+    nomesTimesCorrespondem(
+      dica.time_casa,
+      partida.teams.away.name
+    ) &&
+    nomesTimesCorrespondem(
+      dica.time_visitante,
+      partida.teams.home.name
+    );
+
+  return (
+    ordemNormal ||
+    ordemInvertida
+  );
 }
 
 function extrairNumero(
@@ -389,28 +517,6 @@ function converterEstatistica(
     : null;
 }
 
-function dividirEmGrupos<T>(
-  itens: T[],
-  tamanho: number
-) {
-  const grupos: T[][] = [];
-
-  for (
-    let indice = 0;
-    indice < itens.length;
-    indice += tamanho
-  ) {
-    grupos.push(
-      itens.slice(
-        indice,
-        indice + tamanho
-      )
-    );
-  }
-
-  return grupos;
-}
-
 async function consultarApi<T>(
   caminho: string,
   chaveApi: string
@@ -438,10 +544,8 @@ async function consultarApi<T>(
       "Erro HTTP da API-Football:",
       {
         caminho,
-
         status:
           resposta.status,
-
         resposta:
           texto,
       }
@@ -461,7 +565,6 @@ async function consultarApi<T>(
       "Resposta inválida da API-Football:",
       {
         caminho,
-
         resposta:
           texto,
       }
@@ -560,15 +663,6 @@ function obterTotalCartoes(
     return null;
   }
 
-  /*
-   * Regra utilizada:
-   *
-   * cartão amarelo = 1
-   * cartão vermelho = 1
-   *
-   * Algumas casas podem possuir
-   * regras diferentes.
-   */
   return (
     (amarelos ?? 0) +
     (vermelhos ?? 0)
@@ -624,7 +718,6 @@ function transformarPartida(
         .short,
 
     golsCasa,
-
     golsVisitante,
 
     totalGols:
@@ -632,7 +725,6 @@ function transformarPartida(
       golsVisitante,
 
     totalEscanteios,
-
     totalCartoes,
 
     placarFinal:
@@ -689,7 +781,6 @@ function criarAvaliacao(
 
 function compararLinha(
   valorReal: number,
-
   linha: number,
 
   tipo:
@@ -697,7 +788,6 @@ function compararLinha(
     | "menos",
 
   odd: number,
-
   descricao: string
 ): AvaliacaoDica {
   if (
@@ -705,9 +795,7 @@ function compararLinha(
   ) {
     return criarAvaliacao(
       "anulada",
-
       odd,
-
       `${descricao}: o valor final foi exatamente igual à linha ${linha}.`
     );
   }
@@ -892,71 +980,73 @@ function avaliarDuplaPossibilidade(
     partida.golsVisitante;
 
   if (
-    entrada.includes(
+    !entrada.includes(
       "ou empate"
     )
   ) {
-    const equipe =
-      entrada
-        .replace(
-          "ou empate",
-          ""
-        )
-        .trim();
+    return null;
+  }
 
-    if (
-      equipe ===
-        timeCasa ||
-      timeCasa.includes(
-        equipe
-      ) ||
-      equipe.includes(
-        timeCasa
+  const equipe =
+    entrada
+      .replace(
+        "ou empate",
+        ""
       )
-    ) {
-      const ganhou =
-        casaVenceu ||
-        empate;
+      .trim();
 
-      return criarAvaliacao(
-        ganhou
-          ? "ganha"
-          : "perdida",
+  if (
+    equipe ===
+      timeCasa ||
+    timeCasa.includes(
+      equipe
+    ) ||
+    equipe.includes(
+      timeCasa
+    )
+  ) {
+    const ganhou =
+      casaVenceu ||
+      empate;
 
-        dica.odd,
+    return criarAvaliacao(
+      ganhou
+        ? "ganha"
+        : "perdida",
 
-        ganhou
-          ? `${dica.time_casa} venceu ou a partida terminou empatada.`
-          : `${dica.time_casa} perdeu a partida.`
-      );
-    }
+      dica.odd,
 
-    if (
-      equipe ===
-        timeVisitante ||
-      timeVisitante.includes(
-        equipe
-      ) ||
-      equipe.includes(
-        timeVisitante
-      )
-    ) {
-      const ganhou =
-        visitanteVenceu ||
-        empate;
+      ganhou
+        ? `${dica.time_casa} venceu ou a partida terminou empatada.`
+        : `${dica.time_casa} perdeu a partida.`
+    );
+  }
 
-      return criarAvaliacao(
-        ganhou
-          ? "ganha"
-          : "perdida",
+  if (
+    equipe ===
+      timeVisitante ||
+    timeVisitante.includes(
+      equipe
+    ) ||
+    equipe.includes(
+      timeVisitante
+    )
+  ) {
+    const ganhou =
+      visitanteVenceu ||
+      empate;
 
-        dica.odd,
+    return criarAvaliacao(
+      ganhou
+        ? "ganha"
+        : "perdida",
 
-        ganhou
-          ? `${dica.time_visitante} venceu ou a partida terminou empatada.`
-          : `${dica.time_visitante} perdeu a partida.`
-      );
-    }
+      dica.odd,
+
+      ganhou
+        ? `${dica.time_visitante} venceu ou a partida terminou empatada.`
+        : `${dica.time_visitante} perdeu a partida.`
+    );
   }
 
   return null;
@@ -995,13 +1085,9 @@ function avaliarTotalGols(
   ) {
     return compararLinha(
       partida.totalGols,
-
       linha,
-
       "mais",
-
       dica.odd,
-
       "Total de gols"
     );
   }
@@ -1016,13 +1102,9 @@ function avaliarTotalGols(
   ) {
     return compararLinha(
       partida.totalGols,
-
       linha,
-
       "menos",
-
       dica.odd,
-
       "Total de gols"
     );
   }
@@ -1137,13 +1219,9 @@ function avaliarEscanteios(
   ) {
     return compararLinha(
       partida.totalEscanteios,
-
       linha,
-
       "mais",
-
       dica.odd,
-
       "Total de escanteios"
     );
   }
@@ -1158,13 +1236,9 @@ function avaliarEscanteios(
   ) {
     return compararLinha(
       partida.totalEscanteios,
-
       linha,
-
       "menos",
-
       dica.odd,
-
       "Total de escanteios"
     );
   }
@@ -1212,13 +1286,9 @@ function avaliarCartoes(
   ) {
     return compararLinha(
       partida.totalCartoes,
-
       linha,
-
       "mais",
-
       dica.odd,
-
       "Total de cartões"
     );
   }
@@ -1233,13 +1303,9 @@ function avaliarCartoes(
   ) {
     return compararLinha(
       partida.totalCartoes,
-
       linha,
-
       "menos",
-
       dica.odd,
-
       "Total de cartões"
     );
   }
@@ -1325,11 +1391,6 @@ function avaliarDica(
     );
   }
 
-  /*
-   * Compatibilidade para dicas
-   * antigas ou com o nome de mercado
-   * em formato diferente.
-   */
   const entrada =
     normalizarTexto(
       dica.entrada_sugerida
@@ -1416,7 +1477,6 @@ export async function GET(
     return NextResponse.json(
       {
         sucesso: false,
-
         erro:
           "Não autorizado.",
       },
@@ -1435,7 +1495,6 @@ export async function GET(
     return NextResponse.json(
       {
         sucesso: false,
-
         erro:
           "API_FOOTBALL_KEY não foi configurada.",
       },
@@ -1479,11 +1538,6 @@ export async function GET(
         "resultado",
         "pendente"
       )
-      .not(
-        "fixture_id",
-        "is",
-        null
-      )
       .order(
         "data_jogo",
         {
@@ -1503,7 +1557,6 @@ export async function GET(
       return NextResponse.json(
         {
           sucesso: false,
-
           erro:
             "Não foi possível consultar as dicas pendentes.",
         },
@@ -1592,15 +1645,39 @@ export async function GET(
         sucesso: true,
 
         mensagem:
-          "Não existem dicas pendentes com fixture_id.",
+          "Não existem dicas pendentes para verificar.",
 
         dicasPendentes:
+          0,
+
+        fixtureIdsPendentes:
+          0,
+
+        dicasSemFixtureEncontradas:
+          0,
+
+        datasConsultadasParaCorrigirFixture:
+          0,
+
+        fixturesCorrigidos:
+          0,
+
+        dicasSemFixtureNaoEncontradas:
+          0,
+
+        errosCorrecaoFixture:
           0,
 
         partidasConsultadas:
           0,
 
+        limitePartidasPorExecucao:
+          LIMITE_PARTIDAS_VERIFICADAS,
+
         consultasApi:
+          0,
+
+        errosConsultaApi:
           0,
 
         dicasVerificadas:
@@ -1632,6 +1709,181 @@ export async function GET(
       });
     }
 
+    const partidasApi:
+      PartidaResultadoApi[] =
+      [];
+
+    let consultasApi =
+      0;
+
+    let errosConsultaApi =
+      0;
+
+    let fixturesCorrigidos =
+      0;
+
+    let dicasSemFixtureNaoEncontradas =
+      0;
+
+    let errosCorrecaoFixture =
+      0;
+
+    const dicasSemFixture =
+      dicasPendentes.filter(
+        (dica) =>
+          dica.fixture_id ===
+          null
+      );
+
+    const datasParaCorrigir =
+      Array.from(
+        new Set(
+          dicasSemFixture.map(
+            (dica) =>
+              dica.data_jogo
+          )
+        )
+      ).slice(
+        0,
+        LIMITE_DATAS_PARA_CORRIGIR_FIXTURE
+      );
+
+    /*
+     * Corrige automaticamente dicas
+     * antigas que foram salvas sem
+     * fixture_id. A busca é feita por
+     * data e o confronto é identificado
+     * pelos nomes das duas equipes.
+     */
+    for (
+      const dataJogo of
+      datasParaCorrigir
+    ) {
+      try {
+        if (
+          consultasApi > 0
+        ) {
+          await aguardar(
+            INTERVALO_REQUISICOES_MS
+          );
+        }
+
+        const dadosData =
+          await consultarApi<RespostaPartidas>(
+            `/fixtures?date=${dataJogo}&timezone=America%2FSao_Paulo`,
+            chaveApi
+          );
+
+        consultasApi += 1;
+
+        if (
+          possuiErrosApi(
+            dadosData.errors
+          )
+        ) {
+          errosConsultaApi +=
+            1;
+
+          console.error(
+            `Erro ao buscar partidas de ${dataJogo}:`,
+            dadosData.errors
+          );
+
+          continue;
+        }
+
+        const partidasData =
+          dadosData.response ??
+          [];
+
+        const dicasDaData =
+          dicasSemFixture.filter(
+            (dica) =>
+              dica.data_jogo ===
+              dataJogo
+          );
+
+        for (
+          const dica of
+          dicasDaData
+        ) {
+          const partida =
+            partidasData.find(
+              (item) =>
+                partidaCorrespondeDica(
+                  item,
+                  dica
+                )
+            );
+
+          if (!partida) {
+            dicasSemFixtureNaoEncontradas +=
+              1;
+
+            console.warn(
+              `Fixture não localizado para a dica ${dica.id}: ${dica.time_casa} x ${dica.time_visitante} em ${dataJogo}.`
+            );
+
+            continue;
+          }
+
+          const agora =
+            new Date()
+              .toISOString();
+
+          const {
+            error:
+              erroSalvarFixture,
+          } = await supabase
+            .from(
+              "dicas_apostas"
+            )
+            .update({
+              fixture_id:
+                partida.fixture.id,
+
+              atualizada_em:
+                agora,
+            })
+            .eq(
+              "id",
+              dica.id
+            );
+
+          if (
+            erroSalvarFixture
+          ) {
+            errosCorrecaoFixture +=
+              1;
+
+            console.error(
+              `Erro ao salvar fixture_id da dica ${dica.id}:`,
+              erroSalvarFixture
+            );
+
+            continue;
+          }
+
+          dica.fixture_id =
+            partida.fixture.id;
+
+          fixturesCorrigidos +=
+            1;
+        }
+      } catch (error) {
+        consultasApi +=
+          1;
+
+        errosConsultaApi +=
+          1;
+
+        console.error(
+          `Erro ao corrigir fixtures da data ${dataJogo}:`,
+          error
+        );
+      }
+    }
+
     const fixtureIds =
       Array.from(
         new Set(
@@ -1653,61 +1905,68 @@ export async function GET(
         )
       );
 
-    const gruposFixtureIds =
-      dividirEmGrupos(
-        fixtureIds,
-
-        LIMITE_PARTIDAS_POR_CONSULTA
+    const fixtureIdsSelecionados =
+      fixtureIds.slice(
+        0,
+        LIMITE_PARTIDAS_VERIFICADAS
       );
-
-    const partidasApi:
-      PartidaResultadoApi[] =
-      [];
-
-    let consultasApi =
-      0;
 
     for (
-      const grupo of
-      gruposFixtureIds
+      const fixtureId of
+      fixtureIdsSelecionados
     ) {
-      if (
-        grupo.length ===
-        0
-      ) {
-        continue;
-      }
+      try {
+        if (
+          consultasApi > 0
+        ) {
+          await aguardar(
+            INTERVALO_REQUISICOES_MS
+          );
+        }
 
-      const ids =
-        grupo.join("-");
+        const dadosApi =
+          await consultarApi<RespostaPartidas>(
+            `/fixtures?id=${fixtureId}`,
+            chaveApi
+          );
 
-      const dadosApi =
-        await consultarApi<RespostaPartidas>(
-          `/fixtures?ids=${ids}`,
-          chaveApi
-        );
+        consultasApi +=
+          1;
 
-      consultasApi +=
-        1;
-
-      if (
-        possuiErrosApi(
-          dadosApi.errors
-        )
-      ) {
-        throw new Error(
-          `Erro retornado pela API-Football: ${JSON.stringify(
+        if (
+          possuiErrosApi(
             dadosApi.errors
-          )}`
+          )
+        ) {
+          errosConsultaApi +=
+            1;
+
+          console.error(
+            `Erro ao consultar a partida ${fixtureId}:`,
+            dadosApi.errors
+          );
+
+          continue;
+        }
+
+        partidasApi.push(
+          ...(
+            dadosApi.response ??
+            []
+          )
+        );
+      } catch (error) {
+        consultasApi +=
+          1;
+
+        errosConsultaApi +=
+          1;
+
+        console.error(
+          `Erro ao consultar a partida ${fixtureId}:`,
+          error
         );
       }
-
-      partidasApi.push(
-        ...(
-          dadosApi.response ??
-          []
-        )
-      );
     }
 
     const mapaPartidas =
@@ -1762,6 +2021,22 @@ export async function GET(
         continue;
       }
 
+      /*
+       * Só processa nesta execução
+       * as partidas selecionadas
+       * dentro do limite configurado.
+       */
+      if (
+        !fixtureIdsSelecionados.includes(
+          dica.fixture_id
+        )
+      ) {
+        dicasAindaPendentes +=
+          1;
+
+        continue;
+      }
+
       const partidaApi =
         mapaPartidas.get(
           dica.fixture_id
@@ -1779,11 +2054,6 @@ export async function GET(
           .status
           .short;
 
-      /*
-       * Partidas canceladas,
-       * adiadas, abandonadas,
-       * suspensas ou interrompidas.
-       */
       if (
         STATUS_ANULADOS.has(
           statusPartida
@@ -1867,11 +2137,6 @@ export async function GET(
         continue;
       }
 
-      /*
-       * Caso o jogo ainda não tenha
-       * terminado, a dica continua
-       * pendente.
-       */
       if (
         !STATUS_FINALIZADOS.has(
           statusPartida
@@ -1903,11 +2168,6 @@ export async function GET(
           dadosPartida
         );
 
-      /*
-       * Se não houver estatística
-       * suficiente para avaliar,
-       * mantém a dica pendente.
-       */
       if (
         !avaliacao
       ) {
@@ -2039,13 +2299,34 @@ export async function GET(
       dicasPendentes:
         dicasPendentes.length,
 
-      fixtureIdsUnicos:
+      fixtureIdsPendentes:
         fixtureIds.length,
+
+      dicasSemFixtureEncontradas:
+        dicasSemFixture.length,
+
+      datasConsultadasParaCorrigirFixture:
+        datasParaCorrigir.length,
+
+      fixturesCorrigidos,
+
+      dicasSemFixtureNaoEncontradas,
+
+      errosCorrecaoFixture,
+
+      partidasConsultadas:
+        fixtureIdsSelecionados.length,
+
+      limitePartidasPorExecucao:
+        LIMITE_PARTIDAS_VERIFICADAS,
 
       consultasApi,
 
-      partidasConsultadas:
-        fixtureIds.length,
+      errosConsultaApi,
+
+      intervaloRequisicoesSegundos:
+        INTERVALO_REQUISICOES_MS /
+        1000,
 
       partidasRetornadas:
         partidasApi.length,

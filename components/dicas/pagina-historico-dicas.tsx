@@ -34,6 +34,21 @@ import type {
   PeriodoHistorico,
 } from "@/types/historico-dicas";
 
+
+
+type RespostaVerificacaoResultados = {
+  sucesso?: boolean;
+  erro?: string;
+  mensagem?: string;
+  dicasVerificadas?: number;
+  dicasGanhas?: number;
+  dicasPerdidas?: number;
+  dicasAnuladas?: number;
+  dicasAindaPendentes?: number;
+  dicasSemPartida?: number;
+  dicasSemEstatistica?: number;
+  errosAtualizacao?: number;
+};
 function formatarDataJogo(
   valor: string
 ) {
@@ -299,6 +314,16 @@ export default function PaginaHistoricoDicas() {
     setErro,
   ] = useState("");
 
+  const [
+    verificandoResultados,
+    setVerificandoResultados,
+  ] = useState(false);
+
+  const [
+    mensagemVerificacao,
+    setMensagemVerificacao,
+  ] = useState("");
+
   const carregarHistorico =
     useCallback(async () => {
       setCarregando(true);
@@ -390,7 +415,12 @@ export default function PaginaHistoricoDicas() {
             )
           );
 
-        setDicas(registros);
+        setDicas(
+          registros.filter(
+            (dica) =>
+              dica.resultado !== "pendente"
+          )
+        );
       } catch (error) {
         console.error(
           "Erro ao carregar histórico:",
@@ -408,6 +438,79 @@ export default function PaginaHistoricoDicas() {
         setCarregando(false);
       }
     }, [supabase]);
+
+  async function verificarResultados() {
+    setVerificandoResultados(true);
+    setErro("");
+    setMensagemVerificacao("");
+
+    try {
+      const resposta = await fetch(
+        "/api/dicas/verificar-resultados",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+        }
+      );
+
+      const resultado =
+        (await resposta.json()) as RespostaVerificacaoResultados;
+
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.erro ??
+            "Não foi possível verificar os resultados."
+        );
+      }
+
+      const verificadas =
+        Number(resultado.dicasVerificadas) || 0;
+      const ganhas =
+        Number(resultado.dicasGanhas) || 0;
+      const perdidas =
+        Number(resultado.dicasPerdidas) || 0;
+      const anuladas =
+        Number(resultado.dicasAnuladas) || 0;
+      const pendentes =
+        Number(resultado.dicasAindaPendentes) || 0;
+
+      if (resultado.mensagem) {
+        setMensagemVerificacao(
+          resultado.mensagem
+        );
+      } else if (verificadas > 0) {
+        setMensagemVerificacao(
+          `${verificadas} entrada(s) verificada(s): ${ganhas} ganha(s), ${perdidas} perdida(s) e ${anuladas} anulada(s).`
+        );
+      } else if (pendentes > 0) {
+        setMensagemVerificacao(
+          `Nenhum resultado final disponível. ${pendentes} entrada(s) ainda está(ão) pendente(s).`
+        );
+      } else {
+        setMensagemVerificacao(
+          "Não existem entradas pendentes para verificar."
+        );
+      }
+
+      await carregarHistorico();
+    } catch (error) {
+      console.error(
+        "Erro ao verificar resultados:",
+        error
+      );
+
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível verificar os resultados."
+      );
+    } finally {
+      setVerificandoResultados(false);
+    }
+  }
 
   useEffect(() => {
     void carregarHistorico();
@@ -454,22 +557,51 @@ export default function PaginaHistoricoDicas() {
             </p>
 
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Histórico de desempenho
+              Resultados das entradas
             </h1>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Analise os resultados das dicas,
-              descubra os mercados mais rentáveis
-              e acompanhe a evolução da estratégia.
+              Consulte as entradas finalizadas, verifique novos resultados e acompanhe o desempenho da estratégia.
             </p>
           </div>
 
-          <Link
-            href="/dicas"
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white"
-          >
-            Voltar para dicas
-          </Link>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() =>
+                void verificarResultados()
+              }
+              disabled={
+                carregando ||
+                verificandoResultados
+              }
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-900/70 bg-emerald-950/30 px-5 py-3 text-sm font-semibold text-emerald-400 transition hover:border-emerald-700 hover:bg-emerald-950/50 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span
+                aria-hidden="true"
+                className={
+                  verificandoResultados
+                    ? "animate-spin"
+                    : ""
+                }
+              >
+                {verificandoResultados
+                  ? "◌"
+                  : "✓"}
+              </span>
+
+              {verificandoResultados
+                ? "Verificando resultados..."
+                : "Verificar resultados"}
+            </button>
+
+            <Link
+              href="/dicas"
+              className="inline-flex min-h-12 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white"
+            >
+              Voltar para dicas
+            </Link>
+          </div>
         </header>
 
         <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">
@@ -529,6 +661,26 @@ export default function PaginaHistoricoDicas() {
             </button>
           </div>
         </section>
+
+        {mensagemVerificacao && (
+          <div
+            role="status"
+            className="mt-6 flex items-start justify-between gap-4 rounded-2xl border border-emerald-900/70 bg-emerald-950/40 px-5 py-4 text-sm text-emerald-300"
+          >
+            <p>{mensagemVerificacao}</p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setMensagemVerificacao("")
+              }
+              aria-label="Fechar mensagem"
+              className="shrink-0 text-emerald-400 transition hover:text-emerald-200"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {erro && (
           <div
@@ -745,12 +897,11 @@ export default function PaginaHistoricoDicas() {
             <section className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
               <div className="border-b border-zinc-800 px-5 py-5 sm:px-6">
                 <h2 className="text-lg font-bold text-white">
-                  Histórico das entradas
+                  Resultados das entradas
                 </h2>
 
                 <p className="mt-1 text-sm text-zinc-500">
-                  Resultados individuais das dicas
-                  encerradas no período.
+                  Entradas ganhas, perdidas ou anuladas no período selecionado.
                 </p>
               </div>
 

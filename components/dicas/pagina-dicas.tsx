@@ -408,7 +408,12 @@ export default function PaginaDicas() {
               ),
           }));
 
-        setDicas(registros);
+        setDicas(
+          registros.filter(
+            (dica) =>
+              dica.resultado === "pendente"
+          )
+        );
       } catch (error) {
         console.error(
           "Erro ao carregar dicas:",
@@ -1080,45 +1085,8 @@ export default function PaginaDicas() {
                 ◫
               </span>
 
-              Histórico de entradas
+              Resultados das entradas
             </Link>
-
-            <button
-              type="button"
-              onClick={() =>
-                void verificarResultados()
-              }
-              disabled={
-                carregando ||
-                processandoAcao ||
-                cotaEsgotada
-              }
-              title={
-                cotaEsgotada
-                  ? "Cota diária esgotada"
-                  : "Verificar resultados das dicas"
-              }
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-900/70 bg-emerald-950/30 px-5 py-3 text-sm font-semibold text-emerald-400 transition hover:border-emerald-700 hover:bg-emerald-950/50 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span
-                aria-hidden="true"
-                className={
-                  verificandoResultados
-                    ? "animate-spin"
-                    : ""
-                }
-              >
-                {verificandoResultados
-                  ? "◌"
-                  : "✓"}
-              </span>
-
-              {verificandoResultados
-                ? "Verificando resultados..."
-                : cotaEsgotada
-                  ? "Cota esgotada"
-                  : "Verificar resultados"}
-            </button>
 
             <button
               type="button"

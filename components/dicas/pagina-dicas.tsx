@@ -49,26 +49,116 @@ type RespostaExclusaoDica = {
   mensagem?: string;
 };
 
-type RespostaVerificacaoResultados = {
-  sucesso?: boolean;
-  erro?: string;
-  mensagem?: string;
-
-  dicasPendentes?: number;
-  dicasVerificadas?: number;
-  dicasGanhas?: number;
-  dicasPerdidas?: number;
-  dicasAnuladas?: number;
-  dicasAindaPendentes?: number;
-  dicasSemPartida?: number;
-  dicasSemEstatistica?: number;
-  errosAtualizacao?: number;
-};
 
 type RespostaErroApi = {
   sucesso?: boolean;
   erro?: string;
 };
+
+function formatarDataCurta(
+  valor: string
+) {
+  const data =
+    new Date(valor);
+
+  if (
+    Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      timeZone:
+        "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+    }
+  ).format(data);
+}
+
+function formatarOdd(
+  valor: number
+) {
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  ).format(
+    Number.isFinite(valor)
+      ? valor
+      : 0
+  );
+}
+
+function formatarUnidades(
+  valor: number
+) {
+  const numero =
+    Number.isFinite(valor)
+      ? valor
+      : 0;
+
+  const texto =
+    new Intl.NumberFormat(
+      "pt-BR",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    ).format(
+      Math.abs(numero)
+    );
+
+  if (numero > 0) {
+    return `+${texto} un`;
+  }
+
+  if (numero < 0) {
+    return `-${texto} un`;
+  }
+
+  return "0,00 un";
+}
+
+function obterClasseResultado(
+  resultado:
+    DicaAposta["resultado"]
+) {
+  if (resultado === "ganha") {
+    return "border-emerald-900/70 bg-emerald-950/40 text-emerald-400";
+  }
+
+  if (resultado === "perdida") {
+    return "border-red-900/70 bg-red-950/40 text-red-400";
+  }
+
+  return "border-zinc-700 bg-zinc-900 text-zinc-300";
+}
+
+function obterTextoResultado(
+  resultado:
+    DicaAposta["resultado"]
+) {
+  if (resultado === "ganha") {
+    return "Ganha";
+  }
+
+  if (resultado === "perdida") {
+    return "Perdida";
+  }
+
+  if (resultado === "anulada") {
+    return "Anulada";
+  }
+
+  return "Pendente";
+}
 
 export default function PaginaDicas() {
   const supabase = useMemo(
@@ -110,10 +200,6 @@ export default function PaginaDicas() {
     setAtualizandoDicas,
   ] = useState(false);
 
-  const [
-    verificandoResultados,
-    setVerificandoResultados,
-  ] = useState(false);
 
   const [
     processandoId,
@@ -408,12 +494,7 @@ export default function PaginaDicas() {
               ),
           }));
 
-        setDicas(
-          registros.filter(
-            (dica) =>
-              dica.resultado === "pendente"
-          )
-        );
+        setDicas(registros);
       } catch (error) {
         console.error(
           "Erro ao carregar dicas:",
@@ -535,9 +616,87 @@ export default function PaginaDicas() {
     carregarCota,
   ]);
 
+  useEffect(() => {
+    function atualizarAoVoltar() {
+      if (
+        document.visibilityState ===
+        "visible"
+      ) {
+        void carregarDicas(false);
+      }
+    }
+
+    window.addEventListener(
+      "focus",
+      atualizarAoVoltar
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      atualizarAoVoltar
+    );
+
+    return () => {
+      window.removeEventListener(
+        "focus",
+        atualizarAoVoltar
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        atualizarAoVoltar
+      );
+    };
+  }, [carregarDicas]);
+
+  const dicasPendentes =
+    useMemo(
+      () =>
+        dicas.filter(
+          (dica) =>
+            dica.resultado ===
+            "pendente"
+        ),
+      [dicas]
+    );
+
+  const resultadosFinalizados =
+    useMemo(
+      () =>
+        dicas.filter(
+          (dica) =>
+            dica.resultado !==
+            "pendente"
+        ),
+      [dicas]
+    );
+
+  const resultadosRecentes =
+    useMemo(
+      () =>
+        [...resultadosFinalizados]
+          .sort((a, b) => {
+            const dataA =
+              new Date(
+                a.resultado_verificado_em ??
+                  a.atualizada_em
+              ).getTime();
+
+            const dataB =
+              new Date(
+                b.resultado_verificado_em ??
+                  b.atualizada_em
+              ).getTime();
+
+            return dataB - dataA;
+          })
+          .slice(0, 5),
+      [resultadosFinalizados]
+    );
+
   const competicoesDisponiveis =
     useMemo(() => {
-      const nomes = dicas
+      const nomes = dicasPendentes
         .map((dica) =>
           dica.competicao.trim()
         )
@@ -551,7 +710,7 @@ export default function PaginaDicas() {
           "pt-BR"
         )
       );
-    }, [dicas]);
+    }, [dicasPendentes]);
 
   const dicasFiltradas =
     useMemo(() => {
@@ -562,7 +721,7 @@ export default function PaginaDicas() {
             "pt-BR"
           );
 
-      return dicas.filter(
+      return dicasPendentes.filter(
         (dica) => {
           const correspondeCompeticao =
             competicao ===
@@ -622,7 +781,7 @@ export default function PaginaDicas() {
         }
       );
     }, [
-      dicas,
+      dicasPendentes,
       busca,
       competicao,
       confianca,
@@ -646,8 +805,7 @@ export default function PaginaDicas() {
     somenteDestaques;
 
   const processandoAcao =
-    atualizandoDicas ||
-    verificandoResultados;
+    atualizandoDicas;
 
   const cotaEsgotada =
     cotaApi?.statusCota ===
@@ -795,171 +953,6 @@ export default function PaginaDicas() {
       );
     } finally {
       setAtualizandoDicas(
-        false
-      );
-
-      await carregarCota(false);
-    }
-  }
-
-  async function verificarResultados() {
-    if (cotaEsgotada) {
-      setErro(
-        "A cota diária da API-Football está esgotada."
-      );
-
-      return;
-    }
-
-    setVerificandoResultados(
-      true
-    );
-
-    setErro("");
-    setMensagemAtualizacao("");
-
-    try {
-      const resposta =
-        await fetch(
-          "/api/dicas/verificar-resultados",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-          }
-        );
-
-      const tipoConteudo =
-        resposta.headers.get(
-          "content-type"
-        );
-
-      const textoResposta =
-        await resposta.text();
-
-      if (
-        !tipoConteudo?.includes(
-          "application/json"
-        )
-      ) {
-        console.error(
-          "Resposta inválida da verificação:",
-          textoResposta
-        );
-
-        throw new Error(
-          `A rota de verificação não retornou JSON. Status ${resposta.status}.`
-        );
-      }
-
-      const resultado =
-        JSON.parse(
-          textoResposta
-        ) as RespostaVerificacaoResultados;
-
-      if (!resposta.ok) {
-        throw new Error(
-          resultado.erro ??
-            "Não foi possível verificar os resultados."
-        );
-      }
-
-      const verificadas =
-        Number(
-          resultado.dicasVerificadas
-        ) || 0;
-
-      const ganhas =
-        Number(
-          resultado.dicasGanhas
-        ) || 0;
-
-      const perdidas =
-        Number(
-          resultado.dicasPerdidas
-        ) || 0;
-
-      const anuladas =
-        Number(
-          resultado.dicasAnuladas
-        ) || 0;
-
-      const aindaPendentes =
-        Number(
-          resultado.dicasAindaPendentes
-        ) || 0;
-
-      const semPartida =
-        Number(
-          resultado.dicasSemPartida
-        ) || 0;
-
-      const semEstatistica =
-        Number(
-          resultado.dicasSemEstatistica
-        ) || 0;
-
-      const errosAtualizacao =
-        Number(
-          resultado.errosAtualizacao
-        ) || 0;
-
-      if (resultado.mensagem) {
-        setMensagemAtualizacao(
-          resultado.mensagem
-        );
-      } else if (
-        verificadas > 0
-      ) {
-        setMensagemAtualizacao(
-          `${verificadas} dica(s) verificada(s): ${ganhas} ganha(s), ${perdidas} perdida(s) e ${anuladas} anulada(s).`
-        );
-      } else if (
-        aindaPendentes > 0
-      ) {
-        setMensagemAtualizacao(
-          `Nenhum resultado final disponível. ${aindaPendentes} dica(s) ainda está(ão) pendente(s).`
-        );
-      } else if (
-        semPartida > 0 ||
-        semEstatistica > 0
-      ) {
-        setMensagemAtualizacao(
-          `Nenhuma dica foi concluída. ${semPartida} ficou(aram) sem partida localizada e ${semEstatistica} sem estatísticas completas.`
-        );
-      } else {
-        setMensagemAtualizacao(
-          "Não existem resultados pendentes para verificar."
-        );
-      }
-
-      if (
-        errosAtualizacao > 0
-      ) {
-        setErro(
-          `${errosAtualizacao} resultado(s) não puderam ser salvo(s).`
-        );
-      }
-
-      await carregarDicas(
-        false
-      );
-    } catch (error) {
-      console.error(
-        "Erro ao verificar resultados:",
-        error
-      );
-
-      setErro(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível verificar os resultados."
-      );
-    } finally {
-      setVerificandoResultados(
         false
       );
 
@@ -1193,49 +1186,13 @@ export default function PaginaDicas() {
 
         <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <CardResumoDica
-            titulo="Total de dicas"
-            quantidade={resumo.total}
-            descricao="Todas as dicas publicadas"
-            icone="◆"
-            destaque="neutro"
-          />
-
-          <CardResumoDica
-            titulo="Dicas ativas"
-            quantidade={resumo.ativas}
-            descricao="Entradas ainda disponíveis"
+            titulo="Entradas pendentes"
+            quantidade={
+              dicasPendentes.length
+            }
+            descricao="Entradas aguardando resultado"
             icone="◉"
             destaque="atencao"
-          />
-
-          <CardResumoDica
-            titulo="Alta confiança"
-            quantidade={
-              resumo.altaConfianca
-            }
-            descricao="Dicas classificadas como alta"
-            icone="★"
-            destaque="positivo"
-          />
-
-          <CardResumoDica
-            titulo="Dicas ganhas"
-            quantidade={
-              resumo.ganhas
-            }
-            descricao="Resultados positivos registrados"
-            icone="✓"
-            destaque="positivo"
-          />
-
-          <CardResumoDica
-            titulo="Dicas perdidas"
-            quantidade={
-              resumo.perdidas
-            }
-            descricao="Resultados negativos registrados"
-            icone="✕"
-            destaque="negativo"
           />
 
           <CardResumoDica
@@ -1248,8 +1205,7 @@ export default function PaginaDicas() {
             destaque={
               resumo.taxaAcerto >= 60
                 ? "positivo"
-                : resumo.taxaAcerto >
-                    0
+                : resumo.taxaAcerto > 0
                   ? "atencao"
                   : "neutro"
             }
@@ -1261,9 +1217,256 @@ export default function PaginaDicas() {
               resumo.lucroPrejuizo
             }
             tipoValor="unidades"
-            descricao="Resultado acumulado das dicas finalizadas"
+            descricao="Resultado acumulado das entradas"
             icone="↕"
           />
+
+          <CardResumoDica
+            titulo="Resultados concluídos"
+            quantidade={
+              resultadosFinalizados.length
+            }
+            descricao="Ganhas, perdidas e anuladas"
+            icone="✓"
+            destaque="positivo"
+          />
+        </section>
+
+        <section className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+          <div className="grid grid-cols-2 divide-x divide-y divide-zinc-800 sm:grid-cols-4 sm:divide-y-0">
+            <div className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                Ganhas
+              </p>
+
+              <p className="mt-2 text-2xl font-bold text-emerald-400">
+                {resumo.ganhas}
+              </p>
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                Perdidas
+              </p>
+
+              <p className="mt-2 text-2xl font-bold text-red-400">
+                {resumo.perdidas}
+              </p>
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                Anuladas
+              </p>
+
+              <p className="mt-2 text-2xl font-bold text-zinc-300">
+                {resumo.anuladas}
+              </p>
+            </div>
+
+            <div className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                Alta confiança
+              </p>
+
+              <p className="mt-2 text-2xl font-bold text-blue-400">
+                {resumo.altaConfianca}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+          <div className="flex flex-col gap-3 border-b border-zinc-800 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white">
+                Resultados recentes
+              </h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Últimas entradas verificadas no sistema.
+              </p>
+            </div>
+
+            <Link
+              href="/historico-dicas"
+              className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+            >
+              Ver todos os resultados →
+            </Link>
+          </div>
+
+          {resultadosRecentes.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-zinc-500">
+              Nenhum resultado concluído até o momento.
+            </div>
+          ) : (
+            <>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-black/40 text-left">
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                        Data
+                      </th>
+
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                        Confronto
+                      </th>
+
+                      <th className="px-5 py-4 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                        Entrada
+                      </th>
+
+                      <th className="px-5 py-4 text-center text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                        Resultado
+                      </th>
+
+                      <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                        Odd
+                      </th>
+
+                      <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                        Lucro
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {resultadosRecentes.map(
+                      (dica) => (
+                        <tr
+                          key={dica.id}
+                          className="border-b border-zinc-900 last:border-b-0"
+                        >
+                          <td className="whitespace-nowrap px-5 py-4 text-sm text-zinc-500">
+                            {formatarDataCurta(
+                              dica.resultado_verificado_em ??
+                                dica.atualizada_em
+                            )}
+                          </td>
+
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-zinc-200">
+                              {dica.time_casa} x{" "}
+                              {dica.time_visitante}
+                            </p>
+
+                            <p className="mt-1 text-xs text-zinc-600">
+                              {dica.competicao}
+                            </p>
+                          </td>
+
+                          <td className="max-w-xs px-5 py-4 text-sm text-zinc-400">
+                            {dica.entrada_sugerida}
+                          </td>
+
+                          <td className="px-5 py-4 text-center">
+                            <span
+                              className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${obterClasseResultado(
+                                dica.resultado
+                              )}`}
+                            >
+                              {obterTextoResultado(
+                                dica.resultado
+                              )}
+                            </span>
+                          </td>
+
+                          <td className="whitespace-nowrap px-5 py-4 text-right font-semibold text-white">
+                            {formatarOdd(
+                              dica.odd
+                            )}
+                          </td>
+
+                          <td
+                            className={`whitespace-nowrap px-5 py-4 text-right font-bold ${
+                              dica.lucro_prejuizo > 0
+                                ? "text-emerald-400"
+                                : dica.lucro_prejuizo < 0
+                                  ? "text-red-400"
+                                  : "text-zinc-400"
+                            }`}
+                          >
+                            {formatarUnidades(
+                              dica.lucro_prejuizo
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="divide-y divide-zinc-900 md:hidden">
+                {resultadosRecentes.map(
+                  (dica) => (
+                    <article
+                      key={dica.id}
+                      className="p-5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-white">
+                            {dica.time_casa} x{" "}
+                            {dica.time_visitante}
+                          </p>
+
+                          <p className="mt-1 text-xs text-zinc-600">
+                            {formatarDataCurta(
+                              dica.resultado_verificado_em ??
+                                dica.atualizada_em
+                            )}{" "}
+                            • {dica.competicao}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${obterClasseResultado(
+                            dica.resultado
+                          )}`}
+                        >
+                          {obterTextoResultado(
+                            dica.resultado
+                          )}
+                        </span>
+                      </div>
+
+                      <p className="mt-4 text-sm text-zinc-400">
+                        {dica.entrada_sugerida}
+                      </p>
+
+                      <div className="mt-4 flex items-center justify-between gap-4">
+                        <span className="text-sm text-zinc-500">
+                          Odd{" "}
+                          <strong className="text-white">
+                            {formatarOdd(
+                              dica.odd
+                            )}
+                          </strong>
+                        </span>
+
+                        <strong
+                          className={
+                            dica.lucro_prejuizo > 0
+                              ? "text-emerald-400"
+                              : dica.lucro_prejuizo < 0
+                                ? "text-red-400"
+                                : "text-zinc-400"
+                          }
+                        >
+                          {formatarUnidades(
+                            dica.lucro_prejuizo
+                          )}
+                        </strong>
+                      </div>
+                    </article>
+                  )
+                )}
+              </div>
+            </>
+          )}
         </section>
 
         <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">

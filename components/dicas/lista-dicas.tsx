@@ -21,8 +21,26 @@ import type {
   StatusDica,
 } from "@/types/dica-aposta";
 
+export type ApostaVinculadaDica = {
+  id: number;
+  dica_id: number;
+  fixture_id: number | null;
+  valor_apostado: number;
+  odd: number;
+  retorno_potencial: number;
+  resultado: ResultadoDica;
+  lucro_prejuizo: number;
+  casa_aposta: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type ListaDicasProps = {
   dicas: DicaAposta[];
+  apostasPorDica?: Record<
+    number,
+    ApostaVinculadaDica
+  >;
   carregando?: boolean;
   processandoId?: number | null;
 
@@ -65,6 +83,23 @@ function formatarOdd(
     {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
+    }
+  ).format(valorSeguro);
+}
+
+function formatarMoeda(
+  valor: number
+) {
+  const valorSeguro =
+    Number.isFinite(valor)
+      ? valor
+      : 0;
+
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
     }
   ).format(valorSeguro);
 }
@@ -456,6 +491,7 @@ function PainelResultadoDica({
 
 export default function ListaDicas({
   dicas,
+  apostasPorDica = {},
   carregando = false,
   processandoId = null,
   onExcluir,
@@ -523,6 +559,10 @@ export default function ListaDicas({
           dicaPossuiResultadoDetalhado(
             dica
           );
+
+        const apostaVinculada =
+          apostasPorDica[dica.id] ??
+          null;
 
         return (
           <article
@@ -770,6 +810,91 @@ export default function ListaDicas({
               </div>
             </div>
 
+            {apostaVinculada && (
+              <section className="mt-6 rounded-2xl border border-blue-900/60 bg-blue-950/20 p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <span className="inline-flex rounded-full border border-blue-800/70 bg-blue-950/60 px-3 py-1 text-xs font-semibold text-blue-300">
+                      Aposta registrada
+                    </span>
+
+                    <p className="mt-3 text-sm leading-6 text-zinc-400">
+                      Esta dica já foi adicionada ao seu controle financeiro de apostas.
+                    </p>
+
+                    {apostaVinculada.casa_aposta && (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Casa: {apostaVinculada.casa_aposta}
+                      </p>
+                    )}
+                  </div>
+
+                  <Link
+                    href={`/apostas?aposta=${apostaVinculada.id}`}
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-blue-800/70 bg-blue-950/40 px-5 py-2.5 text-sm font-semibold text-blue-300 transition hover:border-blue-600 hover:bg-blue-900/40 hover:text-blue-200"
+                  >
+                    Ver aposta
+                  </Link>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                      Valor apostado
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-white">
+                      {formatarMoeda(apostaVinculada.valor_apostado)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                      Odd registrada
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-white">
+                      {formatarOdd(apostaVinculada.odd)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                      Retorno potencial
+                    </p>
+                    <p className="mt-2 text-lg font-bold text-white">
+                      {formatarMoeda(apostaVinculada.retorno_potencial)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800/80 bg-black/40 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                      Resultado
+                    </p>
+                    <p
+                      className={`mt-2 text-lg font-bold ${obterClassesResultado(
+                        apostaVinculada.resultado
+                      )}`}
+                    >
+                      {formatarResultadoDica(apostaVinculada.resultado)}
+                    </p>
+
+                    {apostaVinculada.resultado !== "pendente" && (
+                      <p
+                        className={`mt-1 text-xs font-semibold ${
+                          apostaVinculada.lucro_prejuizo > 0
+                            ? "text-emerald-400"
+                            : apostaVinculada.lucro_prejuizo < 0
+                              ? "text-red-400"
+                              : "text-zinc-400"
+                        }`}
+                      >
+                        {formatarMoeda(apostaVinculada.lucro_prejuizo)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
             <div className="mt-6 rounded-xl border border-amber-900/40 bg-amber-950/20 px-4 py-3 text-xs leading-5 text-amber-300/80">
               Esta dica é baseada em análise
               estatística e não representa
@@ -779,20 +904,26 @@ export default function ListaDicas({
             <div className="mt-6 border-t border-zinc-800 pt-5">
               {!confirmando ? (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  {dica.resultado ===
-                    "pendente" && (
-                    <Link
-                      href={`/apostas?dica=${dica.id}`}
-                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-800/70 bg-emerald-950/30 px-5 py-2.5 text-sm font-semibold text-emerald-400 transition hover:border-emerald-600 hover:bg-emerald-950/50 hover:text-emerald-300"
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="text-base"
+                  {!apostaVinculada &&
+                    dica.resultado ===
+                      "pendente" && (
+                      <Link
+                        href={`/apostas?dica=${dica.id}`}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-800/70 bg-emerald-950/30 px-5 py-2.5 text-sm font-semibold text-emerald-400 transition hover:border-emerald-600 hover:bg-emerald-950/50 hover:text-emerald-300"
                       >
-                        ＋
-                      </span>
+                        <span aria-hidden="true">
+                          ＋
+                        </span>
+                        Usar como aposta
+                      </Link>
+                    )}
 
-                      Usar como aposta
+                  {apostaVinculada && (
+                    <Link
+                      href={`/apostas?aposta=${apostaVinculada.id}`}
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-800/70 bg-blue-950/30 px-5 py-2.5 text-sm font-semibold text-blue-300 transition hover:border-blue-600 hover:bg-blue-950/50 hover:text-blue-200"
+                    >
+                      Ver aposta
                     </Link>
                   )}
 

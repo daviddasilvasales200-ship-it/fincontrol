@@ -177,6 +177,28 @@ type AnalisePartida = {
   competicao: CompeticaoPrioritaria;
 };
 
+
+type DicaBloqueada = {
+  fixture_id:
+    | number
+    | null;
+
+  mercado: string;
+  entrada_sugerida: string;
+
+  time_casa:
+    | string
+    | null;
+
+  time_visitante:
+    | string
+    | null;
+
+  data_jogo:
+    | string
+    | null;
+};
+
 const URL_API =
   "https://v3.football.api-sports.io";
 
@@ -393,6 +415,47 @@ function normalizarTexto(
       "pt-BR"
     )
     .replace(/\s+/g, " ");
+}
+
+
+function criarChaveBloqueioFixture(
+  fixtureId: number,
+  mercado: string,
+  entradaSugerida: string
+) {
+  return [
+    fixtureId,
+    normalizarTexto(
+      mercado
+    ),
+    normalizarTexto(
+      entradaSugerida
+    ),
+  ].join("|");
+}
+
+function criarChaveBloqueioFallback(
+  dataJogo: string,
+  timeCasa: string,
+  timeVisitante: string,
+  mercado: string,
+  entradaSugerida: string
+) {
+  return [
+    dataJogo,
+    normalizarTexto(
+      timeCasa
+    ),
+    normalizarTexto(
+      timeVisitante
+    ),
+    normalizarTexto(
+      mercado
+    ),
+    normalizarTexto(
+      entradaSugerida
+    ),
+  ].join("|");
 }
 
 function converterPercentual(
@@ -2279,9 +2342,138 @@ export async function GET(
       }
     }
 
+    const supabase =
+      createAdminClient();
+
+    const {
+      data:
+        registrosBloqueados,
+      error:
+        erroBloqueios,
+    } = await supabase
+      .from(
+        "dicas_bloqueadas"
+      )
+      .select(
+        `
+          fixture_id,
+          mercado,
+          entrada_sugerida,
+          time_casa,
+          time_visitante,
+          data_jogo
+        `
+      );
+
+    if (
+      erroBloqueios
+    ) {
+      console.error(
+        "Erro ao consultar dicas bloqueadas:",
+        erroBloqueios
+      );
+
+      throw new Error(
+        "Não foi possível consultar as dicas bloqueadas. A atualização foi interrompida para evitar recriar entradas excluídas."
+      );
+    }
+
+    const dicasBloqueadas =
+      (
+        registrosBloqueados ??
+        []
+      ) as DicaBloqueada[];
+
+    const chavesBloqueadasFixture =
+      new Set<string>();
+
+    const chavesBloqueadasFallback =
+      new Set<string>();
+
+    for (
+      const bloqueio of
+      dicasBloqueadas
+    ) {
+      if (
+        bloqueio.fixture_id !==
+          null &&
+        Number.isFinite(
+          Number(
+            bloqueio.fixture_id
+          )
+        )
+      ) {
+        chavesBloqueadasFixture.add(
+          criarChaveBloqueioFixture(
+            Number(
+              bloqueio.fixture_id
+            ),
+            bloqueio.mercado,
+            bloqueio.entrada_sugerida
+          )
+        );
+      }
+
+      if (
+        bloqueio.data_jogo &&
+        bloqueio.time_casa &&
+        bloqueio.time_visitante
+      ) {
+        chavesBloqueadasFallback.add(
+          criarChaveBloqueioFallback(
+            bloqueio.data_jogo,
+            bloqueio.time_casa,
+            bloqueio.time_visitante,
+            bloqueio.mercado,
+            bloqueio.entrada_sugerida
+          )
+        );
+      }
+    }
+
+    let dicasIgnoradasPorBloqueio =
+      0;
+
+    const candidatosPermitidos =
+      candidatos.filter(
+        (dica) => {
+          const bloqueadaPorFixture =
+            chavesBloqueadasFixture.has(
+              criarChaveBloqueioFixture(
+                dica.fixtureId,
+                dica.mercado,
+                dica.entrada_sugerida
+              )
+            );
+
+          const bloqueadaPorFallback =
+            chavesBloqueadasFallback.has(
+              criarChaveBloqueioFallback(
+                dica.data_jogo,
+                dica.time_casa,
+                dica.time_visitante,
+                dica.mercado,
+                dica.entrada_sugerida
+              )
+            );
+
+          if (
+            bloqueadaPorFixture ||
+            bloqueadaPorFallback
+          ) {
+            dicasIgnoradasPorBloqueio +=
+              1;
+
+            return false;
+          }
+
+          return true;
+        }
+      );
+
     const dicasSelecionadas =
       selecionarDicasFinais(
-        candidatos
+        candidatosPermitidos
       );
 
     const distribuicaoMercados =
@@ -2310,9 +2502,6 @@ export async function GET(
           cartoes: 0,
         }
       );
-
-    const supabase =
-      createAdminClient();
 
     const {
       error:
@@ -2558,6 +2747,14 @@ export async function GET(
 
       candidatosGerados:
         candidatos.length,
+
+      dicasBloqueadasCadastradas:
+        dicasBloqueadas.length,
+
+      dicasIgnoradasPorBloqueio,
+
+      candidatosPermitidos:
+        candidatosPermitidos.length,
 
       dicasSelecionadas:
         dicasSelecionadas.length,

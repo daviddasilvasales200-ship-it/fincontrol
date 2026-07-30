@@ -212,6 +212,24 @@ type DetalheProcessamento = {
   motivo: string;
 };
 
+type ResultadoApostaSincronizado =
+  Exclude<
+    ResultadoDica,
+    "pendente"
+  >;
+
+type ApostaVinculadaBanco = {
+  id: number;
+  valor_apostado: number;
+  odd: number;
+};
+
+type ResultadoSincronizacaoApostas = {
+  encontradas: number;
+  atualizadas: number;
+  erros: number;
+};
+
 const URL_API =
   "https://v3.football.api-sports.io";
 
@@ -1466,6 +1484,200 @@ function avaliarDica(
   return null;
 }
 
+function calcularResultadoFinanceiroAposta(
+  valorApostado: number,
+  odd: number,
+  resultado:
+    ResultadoApostaSincronizado
+) {
+  const valorSeguro =
+    Number.isFinite(valorApostado)
+      ? valorApostado
+      : 0;
+
+  const oddSegura =
+    Number.isFinite(odd)
+      ? odd
+      : 0;
+
+  const retornoPotencial =
+    Number(
+      (
+        valorSeguro *
+        oddSegura
+      ).toFixed(2)
+    );
+
+  if (resultado === "ganha") {
+    return {
+      retornoPotencial,
+
+      lucroPrejuizo:
+        Number(
+          (
+            retornoPotencial -
+            valorSeguro
+          ).toFixed(2)
+        ),
+    };
+  }
+
+  if (resultado === "perdida") {
+    return {
+      retornoPotencial,
+
+      lucroPrejuizo:
+        Number(
+          (
+            -valorSeguro
+          ).toFixed(2)
+        ),
+    };
+  }
+
+  return {
+    retornoPotencial,
+    lucroPrejuizo: 0,
+  };
+}
+
+async function sincronizarApostasDaDica(
+  supabase:
+    ReturnType<
+      typeof createAdminClient
+    >,
+
+  dicaId: number,
+
+  resultado:
+    ResultadoApostaSincronizado,
+
+  agora: string
+): Promise<ResultadoSincronizacaoApostas> {
+  const {
+    data: registros,
+    error: erroConsulta,
+  } = await supabase
+    .from("apostas")
+    .select(
+      `
+        id,
+        valor_apostado,
+        odd
+      `
+    )
+    .eq(
+      "dica_id",
+      dicaId
+    )
+    .eq(
+      "origem",
+      "dica"
+    );
+
+  if (erroConsulta) {
+    console.error(
+      `Erro ao consultar apostas vinculadas à dica ${dicaId}:`,
+      erroConsulta
+    );
+
+    return {
+      encontradas: 0,
+      atualizadas: 0,
+      erros: 1,
+    };
+  }
+
+  const apostas:
+    ApostaVinculadaBanco[] =
+    (
+      registros ?? []
+    ).map(
+      (registro) => ({
+        id:
+          Number(
+            registro.id
+          ),
+
+        valor_apostado:
+          Number(
+            registro.valor_apostado
+          ),
+
+        odd:
+          Number(
+            registro.odd
+          ),
+      })
+    );
+
+  let atualizadas = 0;
+  let erros = 0;
+
+  for (
+    const aposta of apostas
+  ) {
+    const financeiro =
+      calcularResultadoFinanceiroAposta(
+        aposta.valor_apostado,
+        aposta.odd,
+        resultado
+      );
+
+    const {
+      error: erroAtualizacao,
+    } = await supabase
+      .from("apostas")
+      .update({
+        resultado,
+
+        retorno_potencial:
+          financeiro
+            .retornoPotencial,
+
+        lucro_prejuizo:
+          financeiro
+            .lucroPrejuizo,
+
+        updated_at:
+          agora,
+      })
+      .eq(
+        "id",
+        aposta.id
+      )
+      .eq(
+        "dica_id",
+        dicaId
+      )
+      .eq(
+        "origem",
+        "dica"
+      );
+
+    if (erroAtualizacao) {
+      erros += 1;
+
+      console.error(
+        `Erro ao sincronizar a aposta ${aposta.id} com a dica ${dicaId}:`,
+        erroAtualizacao
+      );
+
+      continue;
+    }
+
+    atualizadas += 1;
+  }
+
+  return {
+    encontradas:
+      apostas.length,
+
+    atualizadas,
+    erros,
+  };
+}
+
 export async function GET(
   request: NextRequest
 ) {
@@ -1702,6 +1914,15 @@ export async function GET(
           0,
 
         errosAtualizacao:
+          0,
+
+        apostasVinculadasEncontradas:
+          0,
+
+        apostasSincronizadas:
+          0,
+
+        errosSincronizacaoApostas:
           0,
 
         detalhes:
@@ -2010,6 +2231,15 @@ export async function GET(
     let errosAtualizacao =
       0;
 
+    let apostasVinculadasEncontradas =
+      0;
+
+    let apostasSincronizadas =
+      0;
+
+    let errosSincronizacaoApostas =
+      0;
+
     for (
       const dica of
       dicasPendentes
@@ -2110,6 +2340,26 @@ export async function GET(
 
         dicasAnuladas +=
           1;
+
+        const sincronizacaoApostas =
+          await sincronizarApostasDaDica(
+            supabase,
+            dica.id,
+            "anulada",
+            agora
+          );
+
+        apostasVinculadasEncontradas +=
+          sincronizacaoApostas
+            .encontradas;
+
+        apostasSincronizadas +=
+          sincronizacaoApostas
+            .atualizadas;
+
+        errosSincronizacaoApostas +=
+          sincronizacaoApostas
+            .erros;
 
         detalhes.push({
           dicaId:
@@ -2269,6 +2519,31 @@ export async function GET(
           1;
       }
 
+      if (
+        avaliacao.resultado !==
+        "pendente"
+      ) {
+        const sincronizacaoApostas =
+          await sincronizarApostasDaDica(
+            supabase,
+            dica.id,
+            avaliacao.resultado,
+            agora
+          );
+
+        apostasVinculadasEncontradas +=
+          sincronizacaoApostas
+            .encontradas;
+
+        apostasSincronizadas +=
+          sincronizacaoApostas
+            .atualizadas;
+
+        errosSincronizacaoApostas +=
+          sincronizacaoApostas
+            .erros;
+      }
+
       detalhes.push({
         dicaId:
           dica.id,
@@ -2346,6 +2621,12 @@ export async function GET(
       dicasSemEstatistica,
 
       errosAtualizacao,
+
+      apostasVinculadasEncontradas,
+
+      apostasSincronizadas,
+
+      errosSincronizacaoApostas,
 
       detalhes,
     });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -777,7 +778,24 @@ export default function ListaDicas({
 
             <div className="mt-6 border-t border-zinc-800 pt-5">
               {!confirmando ? (
-                <div className="flex justify-end">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                  {dica.resultado ===
+                    "pendente" && (
+                    <Link
+                      href={`/apostas?dica=${dica.id}`}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-800/70 bg-emerald-950/30 px-5 py-2.5 text-sm font-semibold text-emerald-400 transition hover:border-emerald-600 hover:bg-emerald-950/50 hover:text-emerald-300"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="text-base"
+                      >
+                        ＋
+                      </span>
+
+                      Usar como aposta
+                    </Link>
+                  )}
+
                   <button
                     type="button"
                     onClick={() =>
@@ -788,7 +806,7 @@ export default function ListaDicas({
                     disabled={
                       processando
                     }
-                    className="rounded-xl border border-red-900/70 px-4 py-2.5 text-sm font-semibold text-red-500 transition hover:border-red-600 hover:bg-red-950/40 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-red-900/70 px-4 py-2.5 text-sm font-semibold text-red-500 transition hover:border-red-600 hover:bg-red-950/40 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Excluir dica
                   </button>

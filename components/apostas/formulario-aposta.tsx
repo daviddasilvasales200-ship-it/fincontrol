@@ -1,6 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import CampoData from "@/components/campo-data";
 import { createClient } from "@/lib/supabase/client";
@@ -17,12 +22,26 @@ import {
   criarFormularioDaDica,
 } from "@/types/aposta";
 
+import {
+  analisarRiscoAposta,
+  calcularResumoBanca,
+  formatarMoedaBanca,
+  formatarPercentualBanca,
+} from "@/types/banca";
+
 import type {
   Aposta,
   DicaParaAposta,
   FormularioAposta as DadosFormularioAposta,
   ResultadoAposta,
 } from "@/types/aposta";
+
+import type {
+  AnaliseRiscoAposta,
+  ApostaParaCalculoBanca,
+  Banca,
+  ResumoBanca,
+} from "@/types/banca";
 
 type FormularioApostaProps = {
   aposta?: Aposta | null;
@@ -32,48 +51,216 @@ type FormularioApostaProps = {
   onCancelar?: () => void;
 };
 
-function formatarMoeda(valor: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number.isFinite(valor) ? valor : 0);
+type ClassesRisco = {
+  painel: string;
+  titulo: string;
+  selo: string;
+  barra: string;
+  valor: string;
+};
+
+function formatarMoeda(
+  valor: number
+) {
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+    }
+  ).format(
+    Number.isFinite(valor)
+      ? valor
+      : 0
+  );
 }
 
-function formatarOdd(valor: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(valor) ? valor : 0);
+function formatarOdd(
+  valor: number
+) {
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  ).format(
+    Number.isFinite(valor)
+      ? valor
+      : 0
+  );
 }
 
 function converterApostaParaFormulario(
   aposta: Aposta
 ): DadosFormularioAposta {
   return {
-    descricao: aposta.descricao,
-    modalidade: aposta.modalidade,
-    competicao: aposta.competicao ?? "",
-    timeCasa: aposta.time_casa ?? "",
-    timeVisitante: aposta.time_visitante ?? "",
-    casaAposta: aposta.casa_aposta ?? "",
-    valorApostado: Number(aposta.valor_apostado)
-      .toFixed(2)
-      .replace(".", ","),
-    odd: Number(aposta.odd).toFixed(2).replace(".", ","),
-    resultado: aposta.resultado,
-    dataAposta: aposta.data_aposta,
-    observacao: aposta.observacao ?? "",
+    descricao:
+      aposta.descricao,
+
+    modalidade:
+      aposta.modalidade,
+
+    competicao:
+      aposta.competicao ??
+      "",
+
+    timeCasa:
+      aposta.time_casa ??
+      "",
+
+    timeVisitante:
+      aposta.time_visitante ??
+      "",
+
+    casaAposta:
+      aposta.casa_aposta ??
+      "",
+
+    valorApostado:
+      Number(
+        aposta.valor_apostado
+      )
+        .toFixed(2)
+        .replace(".", ","),
+
+    odd:
+      Number(
+        aposta.odd
+      )
+        .toFixed(2)
+        .replace(".", ","),
+
+    resultado:
+      aposta.resultado,
+
+    dataAposta:
+      aposta.data_aposta,
+
+    observacao:
+      aposta.observacao ??
+      "",
   };
+}
+
+function obterClassesRisco(
+  nivel:
+    AnaliseRiscoAposta["nivel"]
+): ClassesRisco {
+  if (nivel === "baixo") {
+    return {
+      painel:
+        "border-emerald-900/60 bg-emerald-950/20",
+
+      titulo:
+        "text-emerald-400",
+
+      selo:
+        "border-emerald-800/70 bg-emerald-950/50 text-emerald-300",
+
+      barra:
+        "bg-emerald-500",
+
+      valor:
+        "text-emerald-400",
+    };
+  }
+
+  if (nivel === "moderado") {
+    return {
+      painel:
+        "border-amber-900/60 bg-amber-950/20",
+
+      titulo:
+        "text-amber-400",
+
+      selo:
+        "border-amber-800/70 bg-amber-950/50 text-amber-300",
+
+      barra:
+        "bg-amber-500",
+
+      valor:
+        "text-amber-400",
+    };
+  }
+
+  if (nivel === "alto") {
+    return {
+      painel:
+        "border-orange-900/60 bg-orange-950/20",
+
+      titulo:
+        "text-orange-400",
+
+      selo:
+        "border-orange-800/70 bg-orange-950/50 text-orange-300",
+
+      barra:
+        "bg-orange-500",
+
+      valor:
+        "text-orange-400",
+    };
+  }
+
+  return {
+    painel:
+      "border-red-900/70 bg-red-950/30",
+
+    titulo:
+      "text-red-400",
+
+    selo:
+      "border-red-800/70 bg-red-950/60 text-red-300",
+
+    barra:
+      "bg-red-500",
+
+    valor:
+      "text-red-400",
+  };
+}
+
+function obterTextoNivelRisco(
+  nivel:
+    AnaliseRiscoAposta["nivel"]
+) {
+  if (nivel === "baixo") {
+    return "Risco baixo";
+  }
+
+  if (nivel === "moderado") {
+    return "Risco moderado";
+  }
+
+  if (nivel === "alto") {
+    return "Risco alto";
+  }
+
+  return "Risco crítico";
 }
 
 const OPCOES_RESULTADO: {
   valor: ResultadoAposta;
   texto: string;
 }[] = [
-  { valor: "pendente", texto: "Pendente" },
-  { valor: "ganha", texto: "Ganha" },
-  { valor: "perdida", texto: "Perdida" },
-  { valor: "anulada", texto: "Anulada" },
+  {
+    valor: "pendente",
+    texto: "Pendente",
+  },
+  {
+    valor: "ganha",
+    texto: "Ganha",
+  },
+  {
+    valor: "perdida",
+    texto: "Perdida",
+  },
+  {
+    valor: "anulada",
+    texto: "Anulada",
+  },
 ];
 
 export default function FormularioAposta({
@@ -83,111 +270,561 @@ export default function FormularioAposta({
   onConcluido,
   onCancelar,
 }: FormularioApostaProps) {
-  const supabase = useMemo(() => createClient(), []);
-
-  const [formulario, setFormulario] = useState<DadosFormularioAposta>({
-    ...FORMULARIO_APOSTA_INICIAL,
-  });
-
-  const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
-  const [sucesso, setSucesso] = useState("");
-
-  const modoEdicao = Boolean(aposta);
-  const vindoDeDica = Boolean(!aposta && dicaOrigem);
-  const bloqueado = carregando || carregandoExterno;
-
-  const valorApostado = useMemo(
-    () => converterValorMonetario(formulario.valorApostado),
-    [formulario.valorApostado]
+  const supabase = useMemo(
+    () => createClient(),
+    []
   );
 
-  const odd = useMemo(
-    () => converterOdd(formulario.odd),
-    [formulario.odd]
+  const [
+    formulario,
+    setFormulario,
+  ] =
+    useState<DadosFormularioAposta>({
+      ...FORMULARIO_APOSTA_INICIAL,
+    });
+
+  const [
+    carregando,
+    setCarregando,
+  ] = useState(false);
+
+  const [
+    carregandoBanca,
+    setCarregandoBanca,
+  ] = useState(true);
+
+  const [
+    banca,
+    setBanca,
+  ] = useState<Banca | null>(
+    null
   );
 
-  const retornoPotencial = useMemo(
-    () => calcularRetornoPotencial(valorApostado, odd),
-    [odd, valorApostado]
-  );
+  const [
+    apostasBanca,
+    setApostasBanca,
+  ] = useState<
+    ApostaParaCalculoBanca[]
+  >([]);
 
-  const lucroPrejuizo = useMemo(
-    () =>
-      calcularLucroPrejuizo(
+  const [erro, setErro] =
+    useState("");
+
+  const [sucesso, setSucesso] =
+    useState("");
+
+  const modoEdicao =
+    Boolean(aposta);
+
+  const vindoDeDica =
+    Boolean(
+      !aposta &&
+      dicaOrigem
+    );
+
+  const bloqueado =
+    carregando ||
+    carregandoExterno;
+
+  const valorApostado =
+    useMemo(
+      () =>
+        converterValorMonetario(
+          formulario.valorApostado
+        ),
+      [
+        formulario
+          .valorApostado,
+      ]
+    );
+
+  const odd =
+    useMemo(
+      () =>
+        converterOdd(
+          formulario.odd
+        ),
+      [formulario.odd]
+    );
+
+  const retornoPotencial =
+    useMemo(
+      () =>
+        calcularRetornoPotencial(
+          valorApostado,
+          odd
+        ),
+      [
+        odd,
         valorApostado,
+      ]
+    );
+
+  const lucroPrejuizo =
+    useMemo(
+      () =>
+        calcularLucroPrejuizo(
+          valorApostado,
+          retornoPotencial,
+          formulario.resultado
+        ),
+      [
+        formulario.resultado,
         retornoPotencial,
-        formulario.resultado
-      ),
-    [formulario.resultado, retornoPotencial, valorApostado]
-  );
+        valorApostado,
+      ]
+    );
+
+  const apostasParaResumo =
+    useMemo(
+      () =>
+        apostasBanca.filter(
+          (item) =>
+            !aposta ||
+            item.id !==
+              aposta.id
+        ),
+      [
+        apostasBanca,
+        aposta,
+      ]
+    );
+
+  const resumoBanca:
+    ResumoBanca =
+    useMemo(
+      () =>
+        calcularResumoBanca(
+          banca,
+          apostasParaResumo
+        ),
+      [
+        banca,
+        apostasParaResumo,
+      ]
+    );
+
+  const analiseRisco =
+    useMemo(
+      () =>
+        analisarRiscoAposta(
+          valorApostado,
+          resumoBanca.saldoAtual,
+          resumoBanca
+            .limitePorAposta
+        ),
+      [
+        valorApostado,
+        resumoBanca.saldoAtual,
+        resumoBanca
+          .limitePorAposta,
+      ]
+    );
+
+  const classesRisco =
+    obterClassesRisco(
+      analiseRisco.nivel
+    );
+
+  const percentualBarraRisco =
+    analiseRisco
+      .limitePermitido >
+    0
+      ? Math.min(
+          (
+            analiseRisco
+              .percentualDaBanca /
+            analiseRisco
+              .limitePermitido
+          ) *
+            100,
+          100
+        )
+      : 0;
 
   useEffect(() => {
     if (aposta) {
-      setFormulario(converterApostaParaFormulario(aposta));
+      setFormulario(
+        converterApostaParaFormulario(
+          aposta
+        )
+      );
     } else if (dicaOrigem) {
-      setFormulario(criarFormularioDaDica(dicaOrigem));
+      setFormulario(
+        criarFormularioDaDica(
+          dicaOrigem
+        )
+      );
     } else {
-      setFormulario({ ...FORMULARIO_APOSTA_INICIAL });
+      setFormulario({
+        ...FORMULARIO_APOSTA_INICIAL,
+      });
     }
 
     setErro("");
     setSucesso("");
-  }, [aposta, dicaOrigem]);
+  }, [
+    aposta,
+    dicaOrigem,
+  ]);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarDadosBanca() {
+      setCarregandoBanca(true);
+
+      try {
+        const {
+          data: usuarioData,
+          error: usuarioError,
+        } =
+          await supabase.auth
+            .getUser();
+
+        if (usuarioError) {
+          throw usuarioError;
+        }
+
+        const usuario =
+          usuarioData.user;
+
+        if (!usuario) {
+          throw new Error(
+            "Sua sessão expirou. Entre novamente."
+          );
+        }
+
+        const [
+          respostaBanca,
+          respostaApostas,
+        ] =
+          await Promise.all([
+            supabase
+              .from("bancas")
+              .select(
+                `
+                  id,
+                  user_id,
+                  nome,
+                  valor_inicial,
+                  meta_mensal,
+                  limite_por_aposta,
+                  ativa,
+                  created_at,
+                  updated_at
+                `
+              )
+              .eq(
+                "user_id",
+                usuario.id
+              )
+              .eq(
+                "ativa",
+                true
+              )
+              .maybeSingle(),
+
+            supabase
+              .from("apostas")
+              .select(
+                `
+                  id,
+                  valor_apostado,
+                  retorno_potencial,
+                  lucro_prejuizo,
+                  resultado,
+                  data_aposta
+                `
+              )
+              .eq(
+                "user_id",
+                usuario.id
+              )
+              .order(
+                "data_aposta",
+                {
+                  ascending: false,
+                }
+              ),
+          ]);
+
+        if (
+          respostaBanca.error
+        ) {
+          throw respostaBanca.error;
+        }
+
+        if (
+          respostaApostas.error
+        ) {
+          throw respostaApostas.error;
+        }
+
+        if (!ativo) {
+          return;
+        }
+
+        const registroBanca =
+          respostaBanca.data;
+
+        if (registroBanca) {
+          setBanca({
+            id:
+              Number(
+                registroBanca.id
+              ),
+
+            user_id:
+              String(
+                registroBanca.user_id
+              ),
+
+            nome:
+              String(
+                registroBanca.nome
+              ),
+
+            valor_inicial:
+              Number(
+                registroBanca
+                  .valor_inicial
+              ),
+
+            meta_mensal:
+              Number(
+                registroBanca
+                  .meta_mensal
+              ),
+
+            limite_por_aposta:
+              Number(
+                registroBanca
+                  .limite_por_aposta
+              ),
+
+            ativa:
+              Boolean(
+                registroBanca.ativa
+              ),
+
+            created_at:
+              String(
+                registroBanca
+                  .created_at
+              ),
+
+            updated_at:
+              String(
+                registroBanca
+                  .updated_at
+              ),
+          });
+        } else {
+          setBanca(null);
+        }
+
+        const registrosApostas:
+          ApostaParaCalculoBanca[] =
+          (
+            respostaApostas.data ??
+            []
+          ).map(
+            (item) => ({
+              id:
+                Number(
+                  item.id
+                ),
+
+              valor_apostado:
+                Number(
+                  item.valor_apostado
+                ),
+
+              retorno_potencial:
+                Number(
+                  item
+                    .retorno_potencial
+                ),
+
+              lucro_prejuizo:
+                Number(
+                  item
+                    .lucro_prejuizo
+                ),
+
+              resultado:
+                item.resultado as
+                  ApostaParaCalculoBanca["resultado"],
+
+              data_aposta:
+                String(
+                  item.data_aposta
+                ),
+            })
+          );
+
+        setApostasBanca(
+          registrosApostas
+        );
+      } catch (error) {
+        console.error(
+          "Erro ao carregar dados da banca no formulário:",
+          error
+        );
+
+        if (ativo) {
+          setBanca(null);
+          setApostasBanca([]);
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoBanca(
+            false
+          );
+        }
+      }
+    }
+
+    void carregarDadosBanca();
+
+    return () => {
+      ativo = false;
+    };
+  }, [supabase]);
 
   function atualizarCampo(
-    campo: keyof DadosFormularioAposta,
+    campo:
+      keyof DadosFormularioAposta,
     valor: string
   ) {
-    setFormulario((estadoAtual) => ({
-      ...estadoAtual,
-      [campo]: valor,
-    }));
+    setFormulario(
+      (estadoAtual) => ({
+        ...estadoAtual,
+        [campo]: valor,
+      })
+    );
+
     setErro("");
     setSucesso("");
   }
 
-  function atualizarResultado(resultado: ResultadoAposta) {
-    setFormulario((estadoAtual) => ({
-      ...estadoAtual,
-      resultado,
-    }));
+  function atualizarResultado(
+    resultado:
+      ResultadoAposta
+  ) {
+    setFormulario(
+      (estadoAtual) => ({
+        ...estadoAtual,
+        resultado,
+      })
+    );
+
     setErro("");
     setSucesso("");
   }
 
   function validarFormulario() {
-    if (!formulario.descricao.trim()) return "Informe a descrição da aposta.";
-    if (!formulario.modalidade) return "Selecione a modalidade.";
-    if (!formulario.competicao.trim()) return "Informe ou selecione a competição.";
-    if (!formulario.timeCasa.trim()) return "Informe o primeiro time do confronto.";
-    if (!formulario.timeVisitante.trim()) return "Informe o segundo time do confronto.";
+    if (
+      !formulario
+        .descricao
+        .trim()
+    ) {
+      return "Informe a descrição da aposta.";
+    }
 
     if (
-      formulario.timeCasa.trim().toLocaleLowerCase("pt-BR") ===
-      formulario.timeVisitante.trim().toLocaleLowerCase("pt-BR")
+      !formulario.modalidade
+    ) {
+      return "Selecione a modalidade.";
+    }
+
+    if (
+      !formulario
+        .competicao
+        .trim()
+    ) {
+      return "Informe ou selecione a competição.";
+    }
+
+    if (
+      !formulario
+        .timeCasa
+        .trim()
+    ) {
+      return "Informe o primeiro time do confronto.";
+    }
+
+    if (
+      !formulario
+        .timeVisitante
+        .trim()
+    ) {
+      return "Informe o segundo time do confronto.";
+    }
+
+    if (
+      formulario.timeCasa
+        .trim()
+        .toLocaleLowerCase(
+          "pt-BR"
+        ) ===
+      formulario.timeVisitante
+        .trim()
+        .toLocaleLowerCase(
+          "pt-BR"
+        )
     ) {
       return "Os times do confronto devem ser diferentes.";
     }
 
-    if (!Number.isFinite(valorApostado) || valorApostado <= 0) {
+    if (
+      !Number.isFinite(
+        valorApostado
+      ) ||
+      valorApostado <= 0
+    ) {
       return "Informe um valor apostado válido.";
     }
 
-    if (!Number.isFinite(odd) || odd < 1) {
+    if (
+      !Number.isFinite(odd) ||
+      odd < 1
+    ) {
       return "Informe uma odd válida, igual ou superior a 1,00.";
     }
 
-    if (!formulario.dataAposta) return "Informe a data da aposta.";
+    if (
+      !formulario.dataAposta
+    ) {
+      return "Informe a data da aposta.";
+    }
+
+    if (
+      banca &&
+      valorApostado >
+        resumoBanca.saldoAtual
+    ) {
+      return "O valor apostado não pode ser maior que o saldo atual da banca.";
+    }
+
     return "";
   }
 
-  async function salvarAposta(event: FormEvent<HTMLFormElement>) {
+  async function salvarAposta(
+    event:
+      FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
 
-    const mensagemValidacao = validarFormulario();
+    const mensagemValidacao =
+      validarFormulario();
+
     if (mensagemValidacao) {
-      setErro(mensagemValidacao);
+      setErro(
+        mensagemValidacao
+      );
+
       return;
     }
 
@@ -199,43 +836,98 @@ export default function FormularioAposta({
       const {
         data: usuarioData,
         error: usuarioError,
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth
+          .getUser();
 
-      if (usuarioError) throw usuarioError;
-
-      const usuario = usuarioData.user;
-      if (!usuario) {
-        throw new Error("Sua sessão expirou. Entre novamente.");
+      if (usuarioError) {
+        throw usuarioError;
       }
 
-      const dadosAposta = converterFormularioParaAposta(formulario, {
-        dicaId: aposta?.dica_id ?? dicaOrigem?.id ?? null,
-        fixtureId: aposta?.fixture_id ?? dicaOrigem?.fixture_id ?? null,
-        origem: aposta?.origem ?? (dicaOrigem ? "dica" : "manual"),
-      });
+      const usuario =
+        usuarioData.user;
+
+      if (!usuario) {
+        throw new Error(
+          "Sua sessão expirou. Entre novamente."
+        );
+      }
+
+      const dadosAposta =
+        converterFormularioParaAposta(
+          formulario,
+          {
+            dicaId:
+              aposta?.dica_id ??
+              dicaOrigem?.id ??
+              null,
+
+            fixtureId:
+              aposta?.fixture_id ??
+              dicaOrigem
+                ?.fixture_id ??
+              null,
+
+            origem:
+              aposta?.origem ??
+              (
+                dicaOrigem
+                  ? "dica"
+                  : "manual"
+              ),
+          }
+        );
 
       if (aposta) {
-        const { error } = await supabase
+        const {
+          error,
+        } = await supabase
           .from("apostas")
           .update({
             ...dadosAposta,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", aposta.id)
-          .eq("user_id", usuario.id);
 
-        if (error) throw error;
-        setSucesso("Aposta atualizada com sucesso.");
-      } else {
-        const { error } = await supabase.from("apostas").insert({
-          user_id: usuario.id,
-          ...dadosAposta,
-        });
+            updated_at:
+              new Date()
+                .toISOString(),
+          })
+          .eq(
+            "id",
+            aposta.id
+          )
+          .eq(
+            "user_id",
+            usuario.id
+          );
 
         if (error) {
-          if (error.code === "23505") {
-            throw new Error("Esta dica já foi usada como aposta.");
+          throw error;
+        }
+
+        setSucesso(
+          "Aposta atualizada com sucesso."
+        );
+      } else {
+        const {
+          error,
+        } = await supabase
+          .from("apostas")
+          .insert({
+            user_id:
+              usuario.id,
+
+            ...dadosAposta,
+          });
+
+        if (error) {
+          if (
+            error.code ===
+            "23505"
+          ) {
+            throw new Error(
+              "Esta dica já foi usada como aposta."
+            );
           }
+
           throw error;
         }
 
@@ -248,7 +940,11 @@ export default function FormularioAposta({
 
       await onConcluido?.();
     } catch (error) {
-      console.error("Erro ao salvar aposta:", error);
+      console.error(
+        "Erro ao salvar aposta:",
+        error
+      );
+
       setErro(
         error instanceof Error
           ? error.message
@@ -260,7 +956,10 @@ export default function FormularioAposta({
   }
 
   return (
-    <form onSubmit={salvarAposta} className="space-y-5">
+    <form
+      onSubmit={salvarAposta}
+      className="space-y-5"
+    >
       <div>
         <h2 className="text-xl font-bold text-white">
           {modoEdicao
@@ -281,7 +980,8 @@ export default function FormularioAposta({
 
       {vindoDeDica && (
         <div className="rounded-xl border border-blue-900/60 bg-blue-950/30 px-4 py-3 text-sm text-blue-300">
-          Esta aposta ficará vinculada à dica #{dicaOrigem?.id}.
+          Esta aposta ficará vinculada à dica #
+          {dicaOrigem?.id}.
         </div>
       )}
 
@@ -298,154 +998,520 @@ export default function FormularioAposta({
       )}
 
       <div>
-        <label className="mb-2 block text-sm font-medium text-zinc-300">
+        <label
+          htmlFor="descricao-aposta"
+          className="mb-2 block text-sm font-medium text-zinc-300"
+        >
           Descrição da aposta
         </label>
+
         <input
-          value={formulario.descricao}
-          onChange={(event) => atualizarCampo("descricao", event.target.value)}
+          id="descricao-aposta"
+          value={
+            formulario.descricao
+          }
+          onChange={(event) =>
+            atualizarCampo(
+              "descricao",
+              event.target.value
+            )
+          }
           disabled={bloqueado}
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
+          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
         />
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="modalidade-aposta"
+            className="mb-2 block text-sm font-medium text-zinc-300"
+          >
             Modalidade
           </label>
+
           <select
-            value={formulario.modalidade}
-            onChange={(event) => atualizarCampo("modalidade", event.target.value)}
+            id="modalidade-aposta"
+            value={
+              formulario.modalidade
+            }
+            onChange={(event) =>
+              atualizarCampo(
+                "modalidade",
+                event.target.value
+              )
+            }
             disabled={bloqueado}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
           >
-            <option value="">Selecione a modalidade</option>
-            {MODALIDADES_APOSTAS.map((modalidade) => (
-              <option key={modalidade} value={modalidade}>
-                {modalidade}
-              </option>
-            ))}
+            <option value="">
+              Selecione a modalidade
+            </option>
+
+            {MODALIDADES_APOSTAS.map(
+              (modalidade) => (
+                <option
+                  key={modalidade}
+                  value={modalidade}
+                >
+                  {modalidade}
+                </option>
+              )
+            )}
           </select>
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="competicao-aposta"
+            className="mb-2 block text-sm font-medium text-zinc-300"
+          >
             Competição
           </label>
+
           <input
+            id="competicao-aposta"
             list="lista-competicoes-apostas"
-            value={formulario.competicao}
-            onChange={(event) => atualizarCampo("competicao", event.target.value)}
+            value={
+              formulario.competicao
+            }
+            onChange={(event) =>
+              atualizarCampo(
+                "competicao",
+                event.target.value
+              )
+            }
             disabled={bloqueado}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
           />
+
           <datalist id="lista-competicoes-apostas">
-            {COMPETICOES_APOSTAS.map((competicao) => (
-              <option key={competicao} value={competicao} />
-            ))}
+            {COMPETICOES_APOSTAS.map(
+              (competicao) => (
+                <option
+                  key={competicao}
+                  value={competicao}
+                />
+              )
+            )}
           </datalist>
         </div>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <input
-          value={formulario.timeCasa}
-          onChange={(event) => atualizarCampo("timeCasa", event.target.value)}
-          disabled={bloqueado}
-          placeholder="Time da casa"
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
-        />
-        <input
-          value={formulario.timeVisitante}
-          onChange={(event) => atualizarCampo("timeVisitante", event.target.value)}
-          disabled={bloqueado}
-          placeholder="Time visitante"
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
-        />
+        <div>
+          <label
+            htmlFor="time-casa-aposta"
+            className="mb-2 block text-sm font-medium text-zinc-300"
+          >
+            Time da casa
+          </label>
+
+          <input
+            id="time-casa-aposta"
+            value={
+              formulario.timeCasa
+            }
+            onChange={(event) =>
+              atualizarCampo(
+                "timeCasa",
+                event.target.value
+              )
+            }
+            disabled={bloqueado}
+            placeholder="Time da casa"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="time-visitante-aposta"
+            className="mb-2 block text-sm font-medium text-zinc-300"
+          >
+            Time visitante
+          </label>
+
+          <input
+            id="time-visitante-aposta"
+            value={
+              formulario.timeVisitante
+            }
+            onChange={(event) =>
+              atualizarCampo(
+                "timeVisitante",
+                event.target.value
+              )
+            }
+            disabled={bloqueado}
+            placeholder="Time visitante"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          />
+        </div>
       </div>
 
-      <input
-        value={formulario.casaAposta}
-        onChange={(event) => atualizarCampo("casaAposta", event.target.value)}
-        disabled={bloqueado}
-        placeholder="Casa de aposta (opcional)"
-        className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
-      />
+      <div>
+        <label
+          htmlFor="casa-aposta"
+          className="mb-2 block text-sm font-medium text-zinc-300"
+        >
+          Casa de aposta
+        </label>
+
+        <input
+          id="casa-aposta"
+          value={
+            formulario.casaAposta
+          }
+          onChange={(event) =>
+            atualizarCampo(
+              "casaAposta",
+              event.target.value
+            )
+          }
+          disabled={bloqueado}
+          placeholder="Casa de aposta (opcional)"
+          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+        />
+      </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <input
-          value={formulario.valorApostado}
-          onChange={(event) => atualizarCampo("valorApostado", event.target.value)}
-          disabled={bloqueado}
-          placeholder="Valor apostado"
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
-        />
-        <input
-          value={formulario.odd}
-          onChange={(event) => atualizarCampo("odd", event.target.value)}
-          disabled={bloqueado}
-          placeholder="Odd"
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
-        />
+        <div>
+          <label
+            htmlFor="valor-apostado"
+            className="mb-2 block text-sm font-medium text-zinc-300"
+          >
+            Valor apostado
+          </label>
+
+          <input
+            id="valor-apostado"
+            value={
+              formulario.valorApostado
+            }
+            onChange={(event) =>
+              atualizarCampo(
+                "valorApostado",
+                event.target.value
+              )
+            }
+            disabled={bloqueado}
+            inputMode="decimal"
+            placeholder="0,00"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="odd-aposta"
+            className="mb-2 block text-sm font-medium text-zinc-300"
+          >
+            Odd
+          </label>
+
+          <input
+            id="odd-aposta"
+            value={
+              formulario.odd
+            }
+            onChange={(event) =>
+              atualizarCampo(
+                "odd",
+                event.target.value
+              )
+            }
+            disabled={bloqueado}
+            inputMode="decimal"
+            placeholder="1,80"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          />
+        </div>
       </div>
 
+      {carregandoBanca && (
+        <div className="animate-pulse rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+          <div className="h-4 w-40 rounded bg-zinc-800" />
+          <div className="mt-4 h-20 rounded-xl bg-zinc-900" />
+        </div>
+      )}
+
+      {!carregandoBanca &&
+        !banca && (
+          <div className="rounded-2xl border border-amber-900/60 bg-amber-950/20 p-5">
+            <p className="font-semibold text-amber-400">
+              Banca não configurada
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-amber-300/70">
+              Cadastre uma banca para receber
+              alertas sobre o percentual e o
+              nível de risco de cada aposta.
+            </p>
+          </div>
+        )}
+
+      {!carregandoBanca &&
+        banca &&
+        valorApostado >
+          0 && (
+          <section
+            className={`rounded-2xl border p-5 ${classesRisco.painel}`}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p
+                  className={`text-xs font-semibold uppercase tracking-[0.16em] ${classesRisco.titulo}`}
+                >
+                  Gestão de risco
+                </p>
+
+                <h3 className="mt-2 text-lg font-bold text-white">
+                  Análise da aposta
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-zinc-400">
+                  {analiseRisco.mensagem}
+                </p>
+              </div>
+
+              <span
+                className={`inline-flex w-fit rounded-full border px-3 py-1.5 text-xs font-bold ${classesRisco.selo}`}
+              >
+                {obterTextoNivelRisco(
+                  analiseRisco.nivel
+                )}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                  Saldo atual
+                </p>
+
+                <p className="mt-2 text-lg font-bold text-white">
+                  {formatarMoedaBanca(
+                    resumoBanca.saldoAtual
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                  Percentual usado
+                </p>
+
+                <p
+                  className={`mt-2 text-lg font-bold ${classesRisco.valor}`}
+                >
+                  {formatarPercentualBanca(
+                    analiseRisco
+                      .percentualDaBanca
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                  Limite permitido
+                </p>
+
+                <p className="mt-2 text-lg font-bold text-white">
+                  {formatarPercentualBanca(
+                    analiseRisco
+                      .limitePermitido
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+                  Valor recomendado
+                </p>
+
+                <p className="mt-2 text-lg font-bold text-blue-400">
+                  {formatarMoedaBanca(
+                    analiseRisco
+                      .valorMaximoRecomendado
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between gap-4 text-xs">
+                <span className="text-zinc-500">
+                  Uso do limite definido
+                </span>
+
+                <span
+                  className={
+                    classesRisco.valor
+                  }
+                >
+                  {formatarPercentualBanca(
+                    Math.min(
+                      percentualBarraRisco,
+                      100
+                    )
+                  )}
+                </span>
+              </div>
+
+              <div className="h-2 overflow-hidden rounded-full bg-black">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${classesRisco.barra}`}
+                  style={{
+                    width:
+                      `${percentualBarraRisco}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {analiseRisco
+              .ultrapassouLimite && (
+              <div className="mt-5 rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm leading-6 text-red-300">
+                Esta aposta está acima do limite
+                definido para a banca. O sistema
+                permitirá salvar, mas o valor
+                representa risco superior ao
+                recomendado.
+              </div>
+            )}
+          </section>
+        )}
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {OPCOES_RESULTADO.map((opcao) => {
-          const selecionado = formulario.resultado === opcao.valor;
-          return (
-            <button
-              key={opcao.valor}
-              type="button"
-              onClick={() => atualizarResultado(opcao.valor)}
-              disabled={bloqueado || vindoDeDica}
-              className={`rounded-xl border px-3 py-3 text-sm font-semibold ${
-                selecionado
-                  ? "border-red-600 bg-red-950/40 text-white"
-                  : "border-zinc-800 bg-black text-zinc-500"
-              }`}
-            >
-              {opcao.texto}
-            </button>
-          );
-        })}
+        {OPCOES_RESULTADO.map(
+          (opcao) => {
+            const selecionado =
+              formulario.resultado ===
+              opcao.valor;
+
+            return (
+              <button
+                key={opcao.valor}
+                type="button"
+                onClick={() =>
+                  atualizarResultado(
+                    opcao.valor
+                  )
+                }
+                disabled={
+                  bloqueado ||
+                  vindoDeDica
+                }
+                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                  selecionado
+                    ? "border-red-600 bg-red-950/40 text-white"
+                    : "border-zinc-800 bg-black text-zinc-500 hover:border-zinc-700"
+                } disabled:cursor-not-allowed disabled:opacity-50`}
+              >
+                {opcao.texto}
+              </button>
+            );
+          }
+        )}
       </div>
 
       <CampoData
         id="data-aposta"
         label="Data da aposta"
-        value={formulario.dataAposta}
-        onChange={(valor) => atualizarCampo("dataAposta", valor)}
+        value={
+          formulario.dataAposta
+        }
+        onChange={(valor) =>
+          atualizarCampo(
+            "dataAposta",
+            valor
+          )
+        }
         required
         descricao="Data em que a aposta foi realizada."
       />
 
-      <textarea
-        rows={4}
-        value={formulario.observacao}
-        onChange={(event) => atualizarCampo("observacao", event.target.value)}
-        disabled={bloqueado}
-        placeholder="Observação"
-        className="w-full resize-none rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none"
-      />
+      <div>
+        <label
+          htmlFor="observacao-aposta"
+          className="mb-2 block text-sm font-medium text-zinc-300"
+        >
+          Observação
+        </label>
 
-      {valorApostado > 0 && odd >= 1 && (
-        <div className="grid gap-4 rounded-2xl border border-zinc-800 bg-black p-5 sm:grid-cols-3">
-          <div>
-            <p className="text-sm text-zinc-500">Valor apostado</p>
-            <p className="mt-2 font-bold">{formatarMoeda(valorApostado)}</p>
+        <textarea
+          id="observacao-aposta"
+          rows={4}
+          value={
+            formulario.observacao
+          }
+          onChange={(event) =>
+            atualizarCampo(
+              "observacao",
+              event.target.value
+            )
+          }
+          disabled={bloqueado}
+          placeholder="Observação"
+          className="w-full resize-none rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+        />
+      </div>
+
+      {valorApostado >
+        0 &&
+        odd >= 1 && (
+          <div className="grid gap-4 rounded-2xl border border-zinc-800 bg-black p-5 sm:grid-cols-3">
+            <div>
+              <p className="text-sm text-zinc-500">
+                Valor apostado
+              </p>
+
+              <p className="mt-2 font-bold text-white">
+                {formatarMoeda(
+                  valorApostado
+                )}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-zinc-500">
+                Retorno potencial
+              </p>
+
+              <p className="mt-2 font-bold text-blue-400">
+                {formatarMoeda(
+                  retornoPotencial
+                )}
+              </p>
+
+              <p className="text-xs text-zinc-600">
+                Odd{" "}
+                {formatarOdd(odd)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-zinc-500">
+                Lucro/prejuízo
+              </p>
+
+              <p
+                className={`mt-2 font-bold ${
+                  lucroPrejuizo > 0
+                    ? "text-emerald-400"
+                    : lucroPrejuizo < 0
+                      ? "text-red-400"
+                      : "text-zinc-300"
+                }`}
+              >
+                {formatarMoeda(
+                  lucroPrejuizo
+                )}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-zinc-500">Retorno potencial</p>
-            <p className="mt-2 font-bold">{formatarMoeda(retornoPotencial)}</p>
-            <p className="text-xs text-zinc-600">Odd {formatarOdd(odd)}</p>
-          </div>
-          <div>
-            <p className="text-sm text-zinc-500">Lucro/prejuízo</p>
-            <p className="mt-2 font-bold">{formatarMoeda(lucroPrejuizo)}</p>
-          </div>
-        </div>
-      )}
+        )}
 
       <div className="flex flex-col-reverse gap-3 border-t border-zinc-800 pt-5 sm:flex-row sm:justify-end">
         {onCancelar && (
@@ -453,15 +1519,16 @@ export default function FormularioAposta({
             type="button"
             onClick={onCancelar}
             disabled={bloqueado}
-            className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-300"
+            className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Cancelar
           </button>
         )}
+
         <button
           type="submit"
           disabled={bloqueado}
-          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white"
+          className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {bloqueado
             ? "Salvando..."

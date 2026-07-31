@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import Link from "next/link";
 import {
   useRouter,
   useSearchParams,
@@ -863,13 +864,30 @@ export default function PaginaApostas() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={abrirNovoCadastro}
-            className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500"
-          >
-            + Nova aposta
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/banca"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-900/70 bg-blue-950/30 px-5 py-3 text-sm font-semibold text-blue-400 transition hover:border-blue-700 hover:bg-blue-950/50 hover:text-blue-300"
+            >
+              <span aria-hidden="true">
+                ◈
+              </span>
+
+              Gestão de banca
+            </Link>
+
+            <button
+              type="button"
+              onClick={abrirNovoCadastro}
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500"
+            >
+              <span aria-hidden="true">
+                ＋
+              </span>
+
+              Nova aposta
+            </button>
+          </div>
         </header>
 
         {(carregandoDica ||

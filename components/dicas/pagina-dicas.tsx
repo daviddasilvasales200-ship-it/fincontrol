@@ -14,6 +14,7 @@ import CardCotaApi, {
 } from "@/components/dicas/card-cota-api";
 
 import CardResumoDica from "@/components/dicas/card-resumo-dica";
+import GraficosDicas from "@/components/dicas/graficos-dicas";
 import ListaDicas from "@/components/dicas/lista-dicas";
 
 import { createClient } from "@/lib/supabase/client";
@@ -1275,6 +1276,13 @@ export default function PaginaDicas() {
             </div>
           </div>
         </section>
+
+        <div className="mt-8">
+          <GraficosDicas
+            dicas={dicas}
+            carregando={carregando}
+          />
+        </div>
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
           <div className="flex flex-col gap-3 border-b border-zinc-800 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">

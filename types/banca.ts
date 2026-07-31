@@ -6,6 +6,7 @@ export type Banca = {
   meta_mensal: number;
   limite_por_aposta: number;
   ativa: boolean;
+  iniciada_em: string;
   created_at: string;
   updated_at: string;
 };
@@ -13,6 +14,7 @@ export type Banca = {
 export type ResumoBanca = {
   valorInicial: number;
   saldoAtual: number;
+  saldoDisponivel: number;
   valorPendente: number;
   lucroPrejuizo: number;
   roi: number;
@@ -35,12 +37,15 @@ export type ApostaParaCalculoBanca = {
   valor_apostado: number;
   retorno_potencial: number;
   lucro_prejuizo: number;
+
   resultado:
     | "pendente"
     | "ganha"
     | "perdida"
     | "anulada";
+
   data_aposta: string;
+  created_at?: string | null;
 };
 
 export type AnaliseRiscoAposta = {
@@ -48,25 +53,33 @@ export type AnaliseRiscoAposta = {
   limitePermitido: number;
   valorMaximoRecomendado: number;
   ultrapassouLimite: boolean;
+
   nivel:
     | "baixo"
     | "moderado"
     | "alto"
     | "critico";
+
   mensagem: string;
 };
 
 function arredondarMoeda(
   valor: number
 ) {
+  const numeroSeguro =
+    Number.isFinite(valor)
+      ? valor
+      : 0;
+
   return Number(
-    valor.toFixed(2)
+    numeroSeguro.toFixed(2)
   );
 }
 
 function normalizarNumero(
   valor:
     | number
+    | string
     | null
     | undefined
 ) {
@@ -79,9 +92,84 @@ function normalizarNumero(
     : 0;
 }
 
+function converterDataSegura(
+  valor:
+    | string
+    | null
+    | undefined
+) {
+  if (!valor) {
+    return null;
+  }
+
+  const data = new Date(valor);
+
+  if (
+    Number.isNaN(
+      data.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return data;
+}
+
+function obterDataAposta(
+  aposta:
+    ApostaParaCalculoBanca
+) {
+  return (
+    converterDataSegura(
+      aposta.created_at
+    ) ??
+    converterDataSegura(
+      aposta.data_aposta
+    )
+  );
+}
+
+export function filtrarApostasDaBanca(
+  banca: Banca | null,
+  apostas:
+    ApostaParaCalculoBanca[]
+) {
+  if (!banca) {
+    return [];
+  }
+
+  const inicioBanca =
+    converterDataSegura(
+      banca.iniciada_em
+    );
+
+  if (!inicioBanca) {
+    return apostas;
+  }
+
+  return apostas.filter(
+    (aposta) => {
+      const dataAposta =
+        obterDataAposta(
+          aposta
+        );
+
+      if (!dataAposta) {
+        return false;
+      }
+
+      return (
+        dataAposta.getTime() >=
+        inicioBanca.getTime()
+      );
+    }
+  );
+}
+
 export function calcularResumoBanca(
   banca: Banca | null,
-  apostas: ApostaParaCalculoBanca[]
+  apostas:
+    ApostaParaCalculoBanca[]
 ): ResumoBanca {
   const valorInicial =
     normalizarNumero(
@@ -98,36 +186,42 @@ export function calcularResumoBanca(
       banca?.limite_por_aposta
     );
 
+  const apostasDaBanca =
+    filtrarApostasDaBanca(
+      banca,
+      apostas
+    );
+
   const apostasFinalizadas =
-    apostas.filter(
+    apostasDaBanca.filter(
       (aposta) =>
         aposta.resultado !==
         "pendente"
     );
 
   const apostasPendentes =
-    apostas.filter(
+    apostasDaBanca.filter(
       (aposta) =>
         aposta.resultado ===
         "pendente"
     );
 
   const apostasGanhas =
-    apostas.filter(
+    apostasDaBanca.filter(
       (aposta) =>
         aposta.resultado ===
         "ganha"
     );
 
   const apostasPerdidas =
-    apostas.filter(
+    apostasDaBanca.filter(
       (aposta) =>
         aposta.resultado ===
         "perdida"
     );
 
   const apostasAnuladas =
-    apostas.filter(
+    apostasDaBanca.filter(
       (aposta) =>
         aposta.resultado ===
         "anulada"
@@ -163,6 +257,10 @@ export function calcularResumoBanca(
     valorInicial +
     lucroPrejuizo;
 
+  const saldoDisponivel =
+    saldoAtual -
+    valorPendente;
+
   const totalDecisoes =
     apostasGanhas.length +
     apostasPerdidas.length;
@@ -191,10 +289,16 @@ export function calcularResumoBanca(
         ) * 100
       : 0;
 
+  const saldoBaseLimite =
+    Math.max(
+      saldoDisponivel,
+      0
+    );
+
   const valorMaximoRecomendado =
-    saldoAtual > 0
+    saldoBaseLimite > 0
       ? (
-          saldoAtual *
+          saldoBaseLimite *
           limitePorAposta
         ) / 100
       : 0;
@@ -234,6 +338,11 @@ export function calcularResumoBanca(
         saldoAtual
       ),
 
+    saldoDisponivel:
+      arredondarMoeda(
+        saldoDisponivel
+      ),
+
     valorPendente:
       arredondarMoeda(
         valorPendente
@@ -261,7 +370,9 @@ export function calcularResumoBanca(
 
     limitePorAposta:
       Number(
-        limitePorAposta.toFixed(2)
+        limitePorAposta.toFixed(
+          2
+        )
       ),
 
     valorMaximoRecomendado:
@@ -270,7 +381,7 @@ export function calcularResumoBanca(
       ),
 
     quantidadeApostas:
-      apostas.length,
+      apostasDaBanca.length,
 
     quantidadePendentes:
       apostasPendentes.length,
@@ -303,22 +414,31 @@ export function calcularResumoBanca(
 
 export function analisarRiscoAposta(
   valorApostado: number,
-  saldoAtual: number,
+  saldoDisponivel: number,
   limitePorAposta: number
 ): AnaliseRiscoAposta {
   const valorSeguro =
-    normalizarNumero(
-      valorApostado
+    Math.max(
+      normalizarNumero(
+        valorApostado
+      ),
+      0
     );
 
   const saldoSeguro =
-    normalizarNumero(
-      saldoAtual
+    Math.max(
+      normalizarNumero(
+        saldoDisponivel
+      ),
+      0
     );
 
   const limiteSeguro =
-    normalizarNumero(
-      limitePorAposta
+    Math.max(
+      normalizarNumero(
+        limitePorAposta
+      ),
+      0
     );
 
   const percentualDaBanca =
@@ -338,14 +458,20 @@ export function analisarRiscoAposta(
       : 0;
 
   const ultrapassouLimite =
+    limiteSeguro > 0 &&
     percentualDaBanca >
-    limiteSeguro;
+      limiteSeguro;
 
   let nivel:
     AnaliseRiscoAposta["nivel"] =
     "baixo";
 
   if (
+    limiteSeguro <= 0 &&
+    valorSeguro > 0
+  ) {
+    nivel = "critico";
+  } else if (
     percentualDaBanca >
     limiteSeguro * 2
   ) {
@@ -365,17 +491,25 @@ export function analisarRiscoAposta(
   let mensagem =
     "O valor está dentro do limite recomendado.";
 
-  if (nivel === "moderado") {
+  if (
+    saldoSeguro <= 0 &&
+    valorSeguro > 0
+  ) {
+    mensagem =
+      "Não existe saldo disponível suficiente para realizar esta aposta.";
+  } else if (
+    nivel === "moderado"
+  ) {
     mensagem =
       "O valor está próximo do limite recomendado.";
-  }
-
-  if (nivel === "alto") {
+  } else if (
+    nivel === "alto"
+  ) {
     mensagem =
       "O valor ultrapassa o limite recomendado para esta banca.";
-  }
-
-  if (nivel === "critico") {
+  } else if (
+    nivel === "critico"
+  ) {
     mensagem =
       "O valor representa um risco muito alto para a banca atual.";
   }
@@ -414,7 +548,9 @@ export function formatarMoedaBanca(
       currency: "BRL",
     }
   ).format(
-    normalizarNumero(valor)
+    normalizarNumero(
+      valor
+    )
   );
 }
 
@@ -428,6 +564,34 @@ export function formatarPercentualBanca(
       maximumFractionDigits: 2,
     }
   ).format(
-    normalizarNumero(valor)
+    normalizarNumero(
+      valor
+    )
   )}%`;
+}
+
+export function formatarDataInicioBanca(
+  valor:
+    | string
+    | null
+    | undefined
+) {
+  const data =
+    converterDataSegura(
+      valor
+    );
+
+  if (!data) {
+    return "Não informada";
+  }
+
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone:
+        "America/Sao_Paulo",
+    }
+  ).format(data);
 }

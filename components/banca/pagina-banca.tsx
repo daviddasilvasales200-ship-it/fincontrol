@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 
 import {
   calcularResumoBanca,
+  formatarDataInicioBanca,
   formatarMoedaBanca,
   formatarPercentualBanca,
 } from "@/types/banca";
@@ -206,6 +207,16 @@ export default function PaginaBanca() {
     setModoEdicao,
   ] = useState(false);
 
+  const [
+    confirmandoExclusao,
+    setConfirmandoExclusao,
+  ] = useState(false);
+
+  const [
+    excluindo,
+    setExcluindo,
+  ] = useState(false);
+
   const [erro, setErro] =
     useState("");
 
@@ -258,6 +269,7 @@ export default function PaginaBanca() {
                   meta_mensal,
                   limite_por_aposta,
                   ativa,
+                  iniciada_em,
                   created_at,
                   updated_at
                 `
@@ -281,7 +293,8 @@ export default function PaginaBanca() {
                   retorno_potencial,
                   lucro_prejuizo,
                   resultado,
-                  data_aposta
+                  data_aposta,
+                  created_at
                 `
               )
               .eq(
@@ -346,6 +359,12 @@ export default function PaginaBanca() {
               ativa:
                 Boolean(
                   registroBanca.ativa
+                ),
+
+              iniciada_em:
+                String(
+                  registroBanca
+                    .iniciada_em
                 ),
 
               created_at:
@@ -434,6 +453,13 @@ export default function PaginaBanca() {
                   String(
                     aposta.data_aposta
                   ),
+
+                created_at:
+                  aposta.created_at
+                    ? String(
+                        aposta.created_at
+                      )
+                    : null,
               })
             );
 
@@ -675,6 +701,10 @@ export default function PaginaBanca() {
           limitePorAposta,
 
         ativa: true,
+
+        iniciada_em:
+          banca?.iniciada_em ??
+          new Date().toISOString(),
       };
 
       if (banca) {
@@ -753,6 +783,70 @@ export default function PaginaBanca() {
     }
   }
 
+  async function excluirBanca() {
+    if (!banca) {
+      return;
+    }
+
+    setExcluindo(true);
+    setErro("");
+    setSucesso("");
+
+    try {
+      const {
+        data: usuarioData,
+        error: usuarioError,
+      } = await supabase.auth.getUser();
+
+      if (usuarioError) {
+        throw usuarioError;
+      }
+
+      const usuario = usuarioData.user;
+
+      if (!usuario) {
+        throw new Error(
+          "Sua sessão expirou. Entre novamente."
+        );
+      }
+
+      const { error: erroExclusao } =
+        await supabase
+          .from("bancas")
+          .delete()
+          .eq("id", banca.id)
+          .eq("user_id", usuario.id);
+
+      if (erroExclusao) {
+        throw erroExclusao;
+      }
+
+      setBanca(null);
+      setApostas([]);
+      setFormulario({
+        ...FORMULARIO_INICIAL,
+      });
+      setModoEdicao(true);
+      setConfirmandoExclusao(false);
+      setSucesso(
+        "Banca excluída. O histórico de apostas foi preservado e uma nova banca começará do zero."
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao excluir banca:",
+        error
+      );
+
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível excluir a banca."
+      );
+    } finally {
+      setExcluindo(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-black px-4 py-6 text-white sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-7xl">
@@ -782,15 +876,27 @@ export default function PaginaBanca() {
             </Link>
 
             {banca && !modoEdicao && (
-              <button
-                type="button"
-                onClick={
-                  iniciarEdicao
-                }
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500"
-              >
-                Editar banca
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={iniciarEdicao}
+                  disabled={excluindo}
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-950 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Editar banca
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmandoExclusao(true)
+                  }
+                  disabled={excluindo}
+                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-red-900/70 bg-red-950/30 px-5 py-3 text-sm font-semibold text-red-400 transition hover:border-red-700 hover:bg-red-950/50 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Excluir banca
+                </button>
+              </>
             )}
           </div>
         </header>
@@ -833,6 +939,48 @@ export default function PaginaBanca() {
               ✕
             </button>
           </div>
+        )}
+
+        {confirmandoExclusao && banca && (
+          <section className="mt-6 rounded-2xl border border-red-900/70 bg-red-950/30 p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-400">
+              Atenção
+            </p>
+
+            <h2 className="mt-2 text-xl font-bold text-white">
+              Excluir a banca “{banca.nome}”?
+            </h2>
+
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-red-200/70">
+              A configuração e os cálculos desta banca serão zerados. As apostas registradas continuarão no histórico. Ao criar uma nova banca, somente apostas feitas após o novo início entrarão nos cálculos.
+            </p>
+
+            <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setConfirmandoExclusao(false)
+                }
+                disabled={excluindo}
+                className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void excluirBanca()
+                }
+                disabled={excluindo}
+                className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {excluindo
+                  ? "Excluindo..."
+                  : "Confirmar exclusão"}
+              </button>
+            </div>
+          </section>
         )}
 
         {carregando ? (
@@ -1082,6 +1230,24 @@ export default function PaginaBanca() {
                         resumo.valorInicial
                           ? "positivo"
                           : "negativo"
+                      }
+                    />
+
+                    <CardResumo
+                      titulo="Saldo disponível"
+                      valor={
+                        formatarMoedaBanca(
+                          resumo.saldoDisponivel
+                        )
+                      }
+                      descricao="Saldo atual menos apostas pendentes"
+                      icone="◉"
+                      destaque={
+                        resumo.saldoDisponivel > 0
+                          ? "positivo"
+                          : resumo.saldoDisponivel < 0
+                            ? "negativo"
+                            : "neutro"
                       }
                     />
 
@@ -1365,6 +1531,30 @@ export default function PaginaBanca() {
                     </article>
                   </section>
 
+                  <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-600">
+                      Ciclo atual
+                    </p>
+
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-white">
+                          {banca.nome}
+                        </h2>
+
+                        <p className="mt-1 text-sm text-zinc-500">
+                          Iniciada em {formatarDataInicioBanca(
+                            banca.iniciada_em
+                          )}
+                        </p>
+                      </div>
+
+                      <p className="max-w-xl text-sm leading-6 text-zinc-500 sm:text-right">
+                        Apenas apostas registradas a partir deste início entram nos cálculos da banca atual.
+                      </p>
+                    </div>
+                  </section>
+
                   <section className="mt-8 rounded-2xl border border-blue-900/50 bg-blue-950/20 p-5 sm:p-6">
                     <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                       <div>
@@ -1378,11 +1568,11 @@ export default function PaginaBanca() {
                         </h2>
 
                         <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">
-                          Com o saldo atual de{" "}
+                          Com o saldo disponível de{" "}
                           <strong className="text-white">
                             {formatarMoedaBanca(
                               resumo
-                                .saldoAtual
+                                .saldoDisponivel
                             )}
                           </strong>{" "}
                           e limite de{" "}

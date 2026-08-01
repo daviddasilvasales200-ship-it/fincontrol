@@ -80,6 +80,18 @@ type EntradaFinalizada = {
   lucro: number;
 };
 
+type DadoDesempenho = {
+  indice?: number;
+  data: string;
+  dataCompleta: string;
+  confronto?: string;
+  lucro: number;
+  lucroDiario: number;
+  acumulado: number;
+  mediaMovel: number | null;
+  quantidade?: number;
+};
+
 const CORES_RESULTADO: Record<
   ResultadoGrafico,
   string
@@ -846,7 +858,7 @@ export default function GraficosDicas({
     }, [dicasPeriodo]);
 
   const dadosPorEntrada =
-    useMemo(() => {
+    useMemo<DadoDesempenho[]>(() => {
       const lucros =
         entradasFinalizadas.map(
           (item) =>
@@ -885,6 +897,11 @@ export default function GraficosDicas({
                 item.lucro
               ),
 
+            lucroDiario:
+              arredondar(
+                item.lucro
+              ),
+
             acumulado:
               arredondar(
                 acumulado
@@ -903,7 +920,7 @@ export default function GraficosDicas({
     ]);
 
   const dadosDiarios =
-    useMemo(() => {
+    useMemo<DadoDesempenho[]>(() => {
       const mapa =
         new Map<
           string,
@@ -982,6 +999,11 @@ export default function GraficosDicas({
                 dia.data
               ),
 
+            lucro:
+              arredondar(
+                dia.lucroDiario
+              ),
+
             lucroDiario:
               arredondar(
                 dia.lucroDiario
@@ -1007,7 +1029,8 @@ export default function GraficosDicas({
       entradasFinalizadas,
     ]);
 
-  const dadosDesempenho =
+  const dadosDesempenho:
+    DadoDesempenho[] =
     modoDesempenho ===
     "diario"
       ? dadosDiarios

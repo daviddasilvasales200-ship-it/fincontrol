@@ -40,7 +40,6 @@ import type {
   AnaliseRiscoAposta,
   ApostaParaCalculoBanca,
   Banca,
-  ResumoBanca,
 } from "@/types/banca";
 
 type FormularioApostaProps = {
@@ -51,13 +50,27 @@ type FormularioApostaProps = {
   onCancelar?: () => void;
 };
 
-type ClassesRisco = {
-  painel: string;
-  titulo: string;
-  selo: string;
-  barra: string;
-  valor: string;
-};
+const OPCOES_RESULTADO: {
+  valor: ResultadoAposta;
+  texto: string;
+}[] = [
+  {
+    valor: "pendente",
+    texto: "Pendente",
+  },
+  {
+    valor: "ganha",
+    texto: "Ganha",
+  },
+  {
+    valor: "perdida",
+    texto: "Perdida",
+  },
+  {
+    valor: "anulada",
+    texto: "Anulada",
+  },
+];
 
 function formatarMoeda(
   valor: number
@@ -125,9 +138,7 @@ function converterApostaParaFormulario(
         .replace(".", ","),
 
     odd:
-      Number(
-        aposta.odd
-      )
+      Number(aposta.odd)
         .toFixed(2)
         .replace(".", ","),
 
@@ -140,85 +151,6 @@ function converterApostaParaFormulario(
     observacao:
       aposta.observacao ??
       "",
-  };
-}
-
-function obterClassesRisco(
-  nivel:
-    AnaliseRiscoAposta["nivel"]
-): ClassesRisco {
-  if (nivel === "baixo") {
-    return {
-      painel:
-        "border-emerald-900/60 bg-emerald-950/20",
-
-      titulo:
-        "text-emerald-400",
-
-      selo:
-        "border-emerald-800/70 bg-emerald-950/50 text-emerald-300",
-
-      barra:
-        "bg-emerald-500",
-
-      valor:
-        "text-emerald-400",
-    };
-  }
-
-  if (nivel === "moderado") {
-    return {
-      painel:
-        "border-amber-900/60 bg-amber-950/20",
-
-      titulo:
-        "text-amber-400",
-
-      selo:
-        "border-amber-800/70 bg-amber-950/50 text-amber-300",
-
-      barra:
-        "bg-amber-500",
-
-      valor:
-        "text-amber-400",
-    };
-  }
-
-  if (nivel === "alto") {
-    return {
-      painel:
-        "border-orange-900/60 bg-orange-950/20",
-
-      titulo:
-        "text-orange-400",
-
-      selo:
-        "border-orange-800/70 bg-orange-950/50 text-orange-300",
-
-      barra:
-        "bg-orange-500",
-
-      valor:
-        "text-orange-400",
-    };
-  }
-
-  return {
-    painel:
-      "border-red-900/70 bg-red-950/30",
-
-    titulo:
-      "text-red-400",
-
-    selo:
-      "border-red-800/70 bg-red-950/60 text-red-300",
-
-    barra:
-      "bg-red-500",
-
-    valor:
-      "text-red-400",
   };
 }
 
@@ -241,27 +173,84 @@ function obterTextoNivelRisco(
   return "Risco crítico";
 }
 
-const OPCOES_RESULTADO: {
-  valor: ResultadoAposta;
-  texto: string;
-}[] = [
-  {
-    valor: "pendente",
-    texto: "Pendente",
-  },
-  {
-    valor: "ganha",
-    texto: "Ganha",
-  },
-  {
-    valor: "perdida",
-    texto: "Perdida",
-  },
-  {
-    valor: "anulada",
-    texto: "Anulada",
-  },
-];
+function obterClassesRisco(
+  nivel:
+    AnaliseRiscoAposta["nivel"]
+) {
+  if (nivel === "baixo") {
+    return {
+      painel:
+        "border-emerald-900/60 bg-emerald-950/20",
+
+      titulo:
+        "text-emerald-400",
+
+      selo:
+        "border-emerald-800 bg-emerald-950/60 text-emerald-300",
+
+      barra:
+        "bg-emerald-500",
+
+      valor:
+        "text-emerald-400",
+    };
+  }
+
+  if (nivel === "moderado") {
+    return {
+      painel:
+        "border-amber-900/60 bg-amber-950/20",
+
+      titulo:
+        "text-amber-400",
+
+      selo:
+        "border-amber-800 bg-amber-950/60 text-amber-300",
+
+      barra:
+        "bg-amber-500",
+
+      valor:
+        "text-amber-400",
+    };
+  }
+
+  if (nivel === "alto") {
+    return {
+      painel:
+        "border-orange-900/60 bg-orange-950/20",
+
+      titulo:
+        "text-orange-400",
+
+      selo:
+        "border-orange-800 bg-orange-950/60 text-orange-300",
+
+      barra:
+        "bg-orange-500",
+
+      valor:
+        "text-orange-400",
+    };
+  }
+
+  return {
+    painel:
+      "border-red-900/70 bg-red-950/30",
+
+    titulo:
+      "text-red-400",
+
+    selo:
+      "border-red-800 bg-red-950/60 text-red-300",
+
+    barra:
+      "bg-red-500",
+
+    valor:
+      "text-red-400",
+  };
+}
 
 export default function FormularioAposta({
   aposta = null,
@@ -296,9 +285,10 @@ export default function FormularioAposta({
   const [
     banca,
     setBanca,
-  ] = useState<Banca | null>(
-    null
-  );
+  ] =
+    useState<Banca | null>(
+      null
+    );
 
   const [
     apostasBanca,
@@ -355,8 +345,8 @@ export default function FormularioAposta({
           odd
         ),
       [
-        odd,
         valorApostado,
+        odd,
       ]
     );
 
@@ -369,13 +359,13 @@ export default function FormularioAposta({
           formulario.resultado
         ),
       [
-        formulario.resultado,
-        retornoPotencial,
         valorApostado,
+        retornoPotencial,
+        formulario.resultado,
       ]
     );
 
-  const apostasParaResumo =
+  const apostasSemEdicao =
     useMemo(
       () =>
         apostasBanca.filter(
@@ -390,17 +380,16 @@ export default function FormularioAposta({
       ]
     );
 
-  const resumoBanca:
-    ResumoBanca =
+  const resumoBanca =
     useMemo(
       () =>
         calcularResumoBanca(
           banca,
-          apostasParaResumo
+          apostasSemEdicao
         ),
       [
         banca,
-        apostasParaResumo,
+        apostasSemEdicao,
       ]
     );
 
@@ -409,13 +398,15 @@ export default function FormularioAposta({
       () =>
         analisarRiscoAposta(
           valorApostado,
-          resumoBanca.saldoAtual,
+          resumoBanca
+            .saldoDisponivel,
           resumoBanca
             .limitePorAposta
         ),
       [
         valorApostado,
-        resumoBanca.saldoAtual,
+        resumoBanca
+          .saldoDisponivel,
         resumoBanca
           .limitePorAposta,
       ]
@@ -426,7 +417,7 @@ export default function FormularioAposta({
       analiseRisco.nivel
     );
 
-  const percentualBarraRisco =
+  const percentualBarra =
     analiseRisco
       .limitePermitido >
     0
@@ -469,9 +460,9 @@ export default function FormularioAposta({
   ]);
 
   useEffect(() => {
-    let ativo = true;
+    let componenteAtivo = true;
 
-    async function carregarDadosBanca() {
+    async function carregarBanca() {
       setCarregandoBanca(true);
 
       try {
@@ -511,6 +502,7 @@ export default function FormularioAposta({
                   meta_mensal,
                   limite_por_aposta,
                   ativa,
+                  iniciada_em,
                   created_at,
                   updated_at
                 `
@@ -534,7 +526,8 @@ export default function FormularioAposta({
                   retorno_potencial,
                   lucro_prejuizo,
                   resultado,
-                  data_aposta
+                  data_aposta,
+                  created_at
                 `
               )
               .eq(
@@ -561,7 +554,7 @@ export default function FormularioAposta({
           throw respostaApostas.error;
         }
 
-        if (!ativo) {
+        if (!componenteAtivo) {
           return;
         }
 
@@ -608,6 +601,12 @@ export default function FormularioAposta({
                 registroBanca.ativa
               ),
 
+            iniciada_em:
+              String(
+                registroBanca
+                  .iniciada_em
+              ),
+
             created_at:
               String(
                 registroBanca
@@ -624,7 +623,7 @@ export default function FormularioAposta({
           setBanca(null);
         }
 
-        const registrosApostas:
+        const registros:
           ApostaParaCalculoBanca[] =
           (
             respostaApostas.data ??
@@ -638,7 +637,8 @@ export default function FormularioAposta({
 
               valor_apostado:
                 Number(
-                  item.valor_apostado
+                  item
+                    .valor_apostado
                 ),
 
               retorno_potencial:
@@ -659,13 +659,21 @@ export default function FormularioAposta({
 
               data_aposta:
                 String(
-                  item.data_aposta
+                  item
+                    .data_aposta
                 ),
+
+              created_at:
+                item.created_at
+                  ? String(
+                      item.created_at
+                    )
+                  : null,
             })
           );
 
         setApostasBanca(
-          registrosApostas
+          registros
         );
       } catch (error) {
         console.error(
@@ -673,12 +681,12 @@ export default function FormularioAposta({
           error
         );
 
-        if (ativo) {
+        if (componenteAtivo) {
           setBanca(null);
           setApostasBanca([]);
         }
       } finally {
-        if (ativo) {
+        if (componenteAtivo) {
           setCarregandoBanca(
             false
           );
@@ -686,10 +694,10 @@ export default function FormularioAposta({
       }
     }
 
-    void carregarDadosBanca();
+    void carregarBanca();
 
     return () => {
-      ativo = false;
+      componenteAtivo = false;
     };
   }, [supabase]);
 
@@ -752,7 +760,7 @@ export default function FormularioAposta({
         .timeCasa
         .trim()
     ) {
-      return "Informe o primeiro time do confronto.";
+      return "Informe o time da casa.";
     }
 
     if (
@@ -760,7 +768,7 @@ export default function FormularioAposta({
         .timeVisitante
         .trim()
     ) {
-      return "Informe o segundo time do confronto.";
+      return "Informe o time visitante.";
     }
 
     if (
@@ -791,7 +799,7 @@ export default function FormularioAposta({
       !Number.isFinite(odd) ||
       odd < 1
     ) {
-      return "Informe uma odd válida, igual ou superior a 1,00.";
+      return "Informe uma odd igual ou superior a 1,00.";
     }
 
     if (
@@ -803,9 +811,10 @@ export default function FormularioAposta({
     if (
       banca &&
       valorApostado >
-        resumoBanca.saldoAtual
+        resumoBanca
+          .saldoDisponivel
     ) {
-      return "O valor apostado não pode ser maior que o saldo atual da banca.";
+      return "O valor apostado não pode ser maior que o saldo disponível da banca.";
     }
 
     return "";
@@ -880,7 +889,8 @@ export default function FormularioAposta({
 
       if (aposta) {
         const {
-          error,
+          error:
+            erroAtualizacao,
         } = await supabase
           .from("apostas")
           .update({
@@ -899,8 +909,8 @@ export default function FormularioAposta({
             usuario.id
           );
 
-        if (error) {
-          throw error;
+        if (erroAtualizacao) {
+          throw erroAtualizacao;
         }
 
         setSucesso(
@@ -908,7 +918,8 @@ export default function FormularioAposta({
         );
       } else {
         const {
-          error,
+          error:
+            erroInsercao,
         } = await supabase
           .from("apostas")
           .insert({
@@ -918,9 +929,9 @@ export default function FormularioAposta({
             ...dadosAposta,
           });
 
-        if (error) {
+        if (erroInsercao) {
           if (
-            error.code ===
+            erroInsercao.code ===
             "23505"
           ) {
             throw new Error(
@@ -928,7 +939,7 @@ export default function FormularioAposta({
             );
           }
 
-          throw error;
+          throw erroInsercao;
         }
 
         setSucesso(
@@ -971,9 +982,9 @@ export default function FormularioAposta({
 
         <p className="mt-1 text-sm leading-6 text-zinc-500">
           {modoEdicao
-            ? "Atualize o confronto, os dados e o resultado da aposta."
+            ? "Atualize os dados e o resultado da aposta."
             : vindoDeDica
-              ? "Confira os dados da entrada e informe o valor realmente apostado."
+              ? "Confira a entrada e informe o valor realmente apostado."
               : "Registre o confronto e acompanhe seu desempenho."}
         </p>
       </div>
@@ -986,13 +997,19 @@ export default function FormularioAposta({
       )}
 
       {erro && (
-        <div className="rounded-xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+        <div
+          role="alert"
+          className="rounded-xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-300"
+        >
           {erro}
         </div>
       )}
 
       {sucesso && (
-        <div className="rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-300">
+        <div
+          role="status"
+          className="rounded-xl border border-emerald-900/70 bg-emerald-950/40 px-4 py-3 text-sm text-emerald-300"
+        >
           {sucesso}
         </div>
       )}
@@ -1007,6 +1024,7 @@ export default function FormularioAposta({
 
         <input
           id="descricao-aposta"
+          type="text"
           value={
             formulario.descricao
           }
@@ -1017,7 +1035,8 @@ export default function FormularioAposta({
             )
           }
           disabled={bloqueado}
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          placeholder="Ex.: Vitória do time da casa"
+          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
         />
       </div>
 
@@ -1042,10 +1061,10 @@ export default function FormularioAposta({
               )
             }
             disabled={bloqueado}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
           >
             <option value="">
-              Selecione a modalidade
+              Selecione
             </option>
 
             {MODALIDADES_APOSTAS.map(
@@ -1071,7 +1090,7 @@ export default function FormularioAposta({
 
           <input
             id="competicao-aposta"
-            list="lista-competicoes-apostas"
+            list="competicoes-apostas"
             value={
               formulario.competicao
             }
@@ -1082,10 +1101,11 @@ export default function FormularioAposta({
               )
             }
             disabled={bloqueado}
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+            placeholder="Competição"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
           />
 
-          <datalist id="lista-competicoes-apostas">
+          <datalist id="competicoes-apostas">
             {COMPETICOES_APOSTAS.map(
               (competicao) => (
                 <option
@@ -1109,6 +1129,7 @@ export default function FormularioAposta({
 
           <input
             id="time-casa-aposta"
+            type="text"
             value={
               formulario.timeCasa
             }
@@ -1120,7 +1141,7 @@ export default function FormularioAposta({
             }
             disabled={bloqueado}
             placeholder="Time da casa"
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
           />
         </div>
 
@@ -1134,6 +1155,7 @@ export default function FormularioAposta({
 
           <input
             id="time-visitante-aposta"
+            type="text"
             value={
               formulario.timeVisitante
             }
@@ -1145,7 +1167,7 @@ export default function FormularioAposta({
             }
             disabled={bloqueado}
             placeholder="Time visitante"
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
           />
         </div>
       </div>
@@ -1160,6 +1182,7 @@ export default function FormularioAposta({
 
         <input
           id="casa-aposta"
+          type="text"
           value={
             formulario.casaAposta
           }
@@ -1170,8 +1193,8 @@ export default function FormularioAposta({
             )
           }
           disabled={bloqueado}
-          placeholder="Casa de aposta (opcional)"
-          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          placeholder="Ex.: Bet365"
+          className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
         />
       </div>
 
@@ -1186,6 +1209,8 @@ export default function FormularioAposta({
 
           <input
             id="valor-apostado"
+            type="text"
+            inputMode="decimal"
             value={
               formulario.valorApostado
             }
@@ -1196,9 +1221,8 @@ export default function FormularioAposta({
               )
             }
             disabled={bloqueado}
-            inputMode="decimal"
             placeholder="0,00"
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
           />
         </div>
 
@@ -1212,6 +1236,8 @@ export default function FormularioAposta({
 
           <input
             id="odd-aposta"
+            type="text"
+            inputMode="decimal"
             value={
               formulario.odd
             }
@@ -1222,9 +1248,8 @@ export default function FormularioAposta({
               )
             }
             disabled={bloqueado}
-            inputMode="decimal"
             placeholder="1,80"
-            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+            className="w-full rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
           />
         </div>
       </div>
@@ -1232,7 +1257,8 @@ export default function FormularioAposta({
       {carregandoBanca && (
         <div className="animate-pulse rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
           <div className="h-4 w-40 rounded bg-zinc-800" />
-          <div className="mt-4 h-20 rounded-xl bg-zinc-900" />
+
+          <div className="mt-4 h-24 rounded-xl bg-zinc-900" />
         </div>
       )}
 
@@ -1245,8 +1271,7 @@ export default function FormularioAposta({
 
             <p className="mt-2 text-sm leading-6 text-amber-300/70">
               Cadastre uma banca para receber
-              alertas sobre o percentual e o
-              nível de risco de cada aposta.
+              alertas automáticos de risco.
             </p>
           </div>
         )}
@@ -1285,19 +1310,20 @@ export default function FormularioAposta({
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+              <div className="rounded-xl border border-zinc-800 bg-black/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                  Saldo atual
+                  Saldo disponível
                 </p>
 
                 <p className="mt-2 text-lg font-bold text-white">
                   {formatarMoedaBanca(
-                    resumoBanca.saldoAtual
+                    resumoBanca
+                      .saldoDisponivel
                   )}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+              <div className="rounded-xl border border-zinc-800 bg-black/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
                   Percentual usado
                 </p>
@@ -1312,7 +1338,7 @@ export default function FormularioAposta({
                 </p>
               </div>
 
-              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+              <div className="rounded-xl border border-zinc-800 bg-black/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
                   Limite permitido
                 </p>
@@ -1325,7 +1351,7 @@ export default function FormularioAposta({
                 </p>
               </div>
 
-              <div className="rounded-xl border border-zinc-800/80 bg-black/50 p-4">
+              <div className="rounded-xl border border-zinc-800 bg-black/50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
                   Valor recomendado
                 </p>
@@ -1351,10 +1377,7 @@ export default function FormularioAposta({
                   }
                 >
                   {formatarPercentualBanca(
-                    Math.min(
-                      percentualBarraRisco,
-                      100
-                    )
+                    percentualBarra
                   )}
                 </span>
               </div>
@@ -1364,7 +1387,7 @@ export default function FormularioAposta({
                   className={`h-full rounded-full transition-all duration-300 ${classesRisco.barra}`}
                   style={{
                     width:
-                      `${percentualBarraRisco}%`,
+                      `${percentualBarra}%`,
                   }}
                 />
               </div>
@@ -1375,45 +1398,50 @@ export default function FormularioAposta({
               <div className="mt-5 rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm leading-6 text-red-300">
                 Esta aposta está acima do limite
                 definido para a banca. O sistema
-                permitirá salvar, mas o valor
-                representa risco superior ao
-                recomendado.
+                permitirá salvar, mas o risco é
+                superior ao recomendado.
               </div>
             )}
           </section>
         )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {OPCOES_RESULTADO.map(
-          (opcao) => {
-            const selecionado =
-              formulario.resultado ===
-              opcao.valor;
+      <div>
+        <p className="mb-2 block text-sm font-medium text-zinc-300">
+          Resultado
+        </p>
 
-            return (
-              <button
-                key={opcao.valor}
-                type="button"
-                onClick={() =>
-                  atualizarResultado(
-                    opcao.valor
-                  )
-                }
-                disabled={
-                  bloqueado ||
-                  vindoDeDica
-                }
-                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
-                  selecionado
-                    ? "border-red-600 bg-red-950/40 text-white"
-                    : "border-zinc-800 bg-black text-zinc-500 hover:border-zinc-700"
-                } disabled:cursor-not-allowed disabled:opacity-50`}
-              >
-                {opcao.texto}
-              </button>
-            );
-          }
-        )}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {OPCOES_RESULTADO.map(
+            (opcao) => {
+              const selecionado =
+                formulario.resultado ===
+                opcao.valor;
+
+              return (
+                <button
+                  key={opcao.valor}
+                  type="button"
+                  onClick={() =>
+                    atualizarResultado(
+                      opcao.valor
+                    )
+                  }
+                  disabled={
+                    bloqueado ||
+                    vindoDeDica
+                  }
+                  className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
+                    selecionado
+                      ? "border-red-600 bg-red-950/40 text-white"
+                      : "border-zinc-800 bg-black text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  {opcao.texto}
+                </button>
+              );
+            }
+          )}
+        </div>
       </div>
 
       <CampoData
@@ -1453,8 +1481,8 @@ export default function FormularioAposta({
             )
           }
           disabled={bloqueado}
-          placeholder="Observação"
-          className="w-full resize-none rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20"
+          placeholder="Informações adicionais"
+          className="w-full resize-none rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-red-600 focus:ring-2 focus:ring-red-600/20 disabled:opacity-50"
         />
       </div>
 

@@ -12,12 +12,11 @@ import {
   useSearchParams,
 } from "next/navigation";
 
-import CardResumoAposta from "@/components/apostas/card-resumo-aposta";
 import FormularioAposta from "@/components/apostas/formulario-aposta";
+import GraficosApostas from "@/components/apostas/graficos-apostas";
 import ListaApostas from "@/components/apostas/lista-apostas";
 import ModalAposta from "@/components/apostas/modal-aposta";
 import { createClient } from "@/lib/supabase/client";
-import { calcularResumoApostas } from "@/types/aposta";
 
 import type {
   Aposta,
@@ -647,74 +646,6 @@ export default function PaginaApostas() {
       resultado,
     ]);
 
-  const resumo = useMemo(
-    () => calcularResumoApostas(apostas),
-    [apostas]
-  );
-
-  const resumoDicas = useMemo(() => {
-    const apostasDeDicas =
-      apostas.filter(
-        (aposta) =>
-          aposta.origem === "dica"
-      );
-
-    const ganhas = apostasDeDicas.filter(
-      (aposta) =>
-        aposta.resultado === "ganha"
-    ).length;
-
-    const perdidas =
-      apostasDeDicas.filter(
-        (aposta) =>
-          aposta.resultado === "perdida"
-      ).length;
-
-    const baseTaxa = ganhas + perdidas;
-
-    const taxaAcerto =
-      baseTaxa > 0
-        ? Number(
-            (
-              (ganhas / baseTaxa) *
-              100
-            ).toFixed(2)
-          )
-        : 0;
-
-    const valorInvestido =
-      apostasDeDicas.reduce(
-        (total, aposta) =>
-          total +
-          (Number.isFinite(
-            aposta.valor_apostado
-          )
-            ? aposta.valor_apostado
-            : 0),
-        0
-      );
-
-    const lucroPrejuizo =
-      apostasDeDicas.reduce(
-        (total, aposta) =>
-          total +
-          (Number.isFinite(
-            aposta.lucro_prejuizo
-          )
-            ? aposta.lucro_prejuizo
-            : 0),
-        0
-      );
-
-    return {
-      quantidade:
-        apostasDeDicas.length,
-      valorInvestido,
-      lucroPrejuizo,
-      taxaAcerto,
-    };
-  }, [apostas]);
-
   const possuiFiltros =
     busca.trim() !== "" ||
     competicao !== "todas" ||
@@ -937,153 +868,11 @@ export default function PaginaApostas() {
           </div>
         )}
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-          <CardResumoAposta
-            titulo="Total apostado"
-            valor={resumo.totalApostado}
-            descricao="Finalizadas"
-            icone="R$"
-            destaque="neutro"
+        <section className="mt-8">
+          <GraficosApostas
+            apostas={apostas}
+            carregando={carregando}
           />
-
-          <CardResumoAposta
-            titulo="Retorno total"
-            valor={resumo.retornoTotal}
-            descricao="Recebido"
-            icone="↩"
-            destaque="neutro"
-          />
-
-          <CardResumoAposta
-            titulo="Lucro ou prejuízo"
-            valor={resumo.lucroPrejuizo}
-            descricao="Acumulado"
-            icone="↗"
-            destaque={
-              resumo.lucroPrejuizo >= 0
-                ? "positivo"
-                : "negativo"
-            }
-          />
-
-          <CardResumoAposta
-            titulo="ROI"
-            percentual={resumo.roi}
-            descricao="Retorno"
-            icone="%"
-            destaque={
-              resumo.roi >= 0
-                ? "positivo"
-                : "negativo"
-            }
-          />
-
-          <CardResumoAposta
-            titulo="Pendentes"
-            quantidade={
-              resumo.quantidadePendentes
-            }
-            descricao="Aguardando"
-            icone="⌛"
-            destaque="neutro"
-          />
-
-          <CardResumoAposta
-            titulo="Ganhas"
-            quantidade={
-              resumo.quantidadeGanhas
-            }
-            descricao="Positivas"
-            icone="✓"
-            destaque="positivo"
-          />
-        </section>
-
-        <section className="mt-6 overflow-hidden rounded-2xl border border-blue-900/50 bg-blue-950/10">
-          <div className="border-b border-blue-900/40 px-5 py-4">
-            <h2 className="font-bold text-blue-300">
-              Resultado real das dicas utilizadas
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-500">
-              Considera somente dicas que foram
-              registradas como apostas.
-            </p>
-          </div>
-
-          <div className="grid gap-px bg-blue-900/30 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="bg-zinc-950 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                Dicas aproveitadas
-              </p>
-
-              <p className="mt-2 text-2xl font-bold text-blue-400">
-                {resumoDicas.quantidade}
-              </p>
-            </div>
-
-            <div className="bg-zinc-950 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                Valor investido
-              </p>
-
-              <p className="mt-2 text-2xl font-bold text-white">
-                {new Intl.NumberFormat(
-                  "pt-BR",
-                  {
-                    style: "currency",
-                    currency: "BRL",
-                  }
-                ).format(
-                  resumoDicas.valorInvestido
-                )}
-              </p>
-            </div>
-
-            <div className="bg-zinc-950 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                Lucro real
-              </p>
-
-              <p
-                className={`mt-2 text-2xl font-bold ${
-                  resumoDicas.lucroPrejuizo > 0
-                    ? "text-emerald-400"
-                    : resumoDicas.lucroPrejuizo < 0
-                      ? "text-red-400"
-                      : "text-zinc-300"
-                }`}
-              >
-                {new Intl.NumberFormat(
-                  "pt-BR",
-                  {
-                    style: "currency",
-                    currency: "BRL",
-                  }
-                ).format(
-                  resumoDicas.lucroPrejuizo
-                )}
-              </p>
-            </div>
-
-            <div className="bg-zinc-950 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-                Taxa de acerto
-              </p>
-
-              <p className="mt-2 text-2xl font-bold text-emerald-400">
-                {new Intl.NumberFormat(
-                  "pt-BR",
-                  {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                  }
-                ).format(
-                  resumoDicas.taxaAcerto
-                )}%
-              </p>
-            </div>
-          </div>
         </section>
 
         <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">

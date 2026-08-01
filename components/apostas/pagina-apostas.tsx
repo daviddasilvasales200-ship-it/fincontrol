@@ -22,6 +22,7 @@ import type {
   Aposta,
   DicaParaAposta,
   FiltroResultadoAposta,
+  ResultadoAposta,
 } from "@/types/aposta";
 
 type FiltroOrigemAposta =
@@ -124,6 +125,11 @@ export default function PaginaApostas() {
 
   const [apostas, setApostas] =
     useState<Aposta[]>([]);
+
+  const [
+    mostrarEstatisticas,
+    setMostrarEstatisticas,
+  ] = useState(false);
 
   const [apostaSelecionada, setApostaSelecionada] =
     useState<Aposta | null>(null);
@@ -776,6 +782,100 @@ export default function PaginaApostas() {
     }
   }
 
+  async function atualizarResultadoRapido(
+    aposta: Aposta,
+    novoResultado: ResultadoAposta
+  ) {
+    if (aposta.resultado !== "pendente") {
+      return;
+    }
+
+    const lucroPrejuizo =
+      novoResultado === "ganha"
+        ? Number(aposta.valor_apostado) *
+          (Number(aposta.odd) - 1)
+        : novoResultado === "perdida"
+          ? -Number(aposta.valor_apostado)
+          : 0;
+
+    setProcessandoId(aposta.id);
+    setErro("");
+    setSucesso("");
+
+    try {
+      const {
+        data: usuarioData,
+        error: usuarioError,
+      } = await supabase.auth.getUser();
+
+      if (usuarioError) {
+        throw usuarioError;
+      }
+
+      const usuario = usuarioData.user;
+
+      if (!usuario) {
+        throw new Error(
+          "Sua sessão expirou. Entre novamente."
+        );
+      }
+
+      const { error } = await supabase
+        .from("apostas")
+        .update({
+          resultado: novoResultado,
+          lucro_prejuizo:
+            Number(
+              lucroPrejuizo.toFixed(2)
+            ),
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", aposta.id)
+        .eq("user_id", usuario.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setApostas((estadoAtual) =>
+        estadoAtual.map((item) =>
+          item.id === aposta.id
+            ? {
+                ...item,
+                resultado: novoResultado,
+                lucro_prejuizo:
+                  Number(
+                    lucroPrejuizo.toFixed(2)
+                  ),
+                updated_at:
+                  new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
+      const rotulo =
+        novoResultado === "ganha"
+          ? "ganha"
+          : novoResultado === "perdida"
+            ? "perdida"
+            : "anulada";
+
+      setSucesso(
+        `Aposta marcada como ${rotulo}.`
+      );
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível atualizar o resultado."
+      );
+    } finally {
+      setProcessandoId(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-black px-4 py-6 text-white sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-7xl">
@@ -795,7 +895,36 @@ export default function PaginaApostas() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setMostrarEstatisticas(
+                  (estadoAtual) =>
+                    !estadoAtual
+                )
+              }
+              aria-expanded={
+                mostrarEstatisticas
+              }
+              aria-controls="estatisticas-apostas"
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 py-3 text-sm font-semibold transition ${
+                mostrarEstatisticas
+                  ? "border-violet-700 bg-violet-950/50 text-violet-300 hover:border-violet-500 hover:bg-violet-950/70"
+                  : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900 hover:text-white"
+              }`}
+            >
+              <span aria-hidden="true">
+                {mostrarEstatisticas
+                  ? "◉"
+                  : "◎"}
+              </span>
+
+              {mostrarEstatisticas
+                ? "Ocultar estatísticas"
+                : "Mostrar estatísticas"}
+            </button>
+
             <Link
               href="/banca"
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-900/70 bg-blue-950/30 px-5 py-3 text-sm font-semibold text-blue-400 transition hover:border-blue-700 hover:bg-blue-950/50 hover:text-blue-300"
@@ -868,14 +997,84 @@ export default function PaginaApostas() {
           </div>
         )}
 
-        <section className="mt-8">
-          <GraficosApostas
-            apostas={apostas}
-            carregando={carregando}
-          />
-        </section>
+        {mostrarEstatisticas && (
+          <section
+            id="estatisticas-apostas"
+            className="mt-8 space-y-4"
+          >
+            <div className="flex flex-col gap-3 rounded-2xl border border-violet-900/50 bg-violet-950/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-bold text-white">
+                  Estatísticas das apostas
+                </h2>
+
+                <p className="mt-1 text-sm text-zinc-500">
+                  Lucro, ROI, resultados, casas e origem das apostas.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMostrarEstatisticas(
+                    false
+                  )
+                }
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white"
+              >
+                Ocultar painéis
+              </button>
+            </div>
+
+            <GraficosApostas
+              apostas={apostas}
+              carregando={carregando}
+            />
+          </section>
+        )}
 
         <section className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-5">
+          <div className="mb-5">
+            <p className="mb-3 text-sm font-medium text-zinc-400">
+              Resultado
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["todos", "Todas"],
+                  ["pendente", "Pendentes"],
+                  ["ganha", "Ganhas"],
+                  ["perdida", "Perdidas"],
+                  ["anulada", "Anuladas"],
+                ] as const
+              ).map(([valor, texto]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  onClick={() =>
+                    setResultado(valor)
+                  }
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    resultado === valor
+                      ? valor === "ganha"
+                        ? "border-emerald-700 bg-emerald-950/40 text-emerald-300"
+                        : valor === "perdida"
+                          ? "border-red-700 bg-red-950/40 text-red-300"
+                          : valor === "pendente"
+                            ? "border-amber-700 bg-amber-950/40 text-amber-300"
+                            : valor === "anulada"
+                              ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+                              : "border-blue-700 bg-blue-950/40 text-blue-300"
+                      : "border-zinc-800 bg-black text-zinc-500 hover:border-zinc-600 hover:text-white"
+                  }`}
+                >
+                  {texto}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="mb-5">
             <p className="mb-3 text-sm font-medium text-zinc-400">
               Origem das apostas
@@ -916,7 +1115,7 @@ export default function PaginaApostas() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_260px_180px_auto]">
+          <div className="grid gap-4 lg:grid-cols-[1fr_260px_auto]">
             <input
               value={busca}
               onChange={(event) =>
@@ -951,33 +1150,6 @@ export default function PaginaApostas() {
                   </option>
                 )
               )}
-            </select>
-
-            <select
-              value={resultado}
-              onChange={(event) =>
-                setResultado(
-                  event.target
-                    .value as FiltroResultadoAposta
-                )
-              }
-              className="rounded-xl border border-zinc-800 bg-black px-4 py-3 text-white outline-none transition focus:border-red-600"
-            >
-              <option value="todos">
-                Todos
-              </option>
-              <option value="pendente">
-                Pendentes
-              </option>
-              <option value="ganha">
-                Ganhas
-              </option>
-              <option value="perdida">
-                Perdidas
-              </option>
-              <option value="anulada">
-                Anuladas
-              </option>
             </select>
 
             <button
@@ -1015,6 +1187,9 @@ export default function PaginaApostas() {
             processandoId={processandoId}
             onEditar={abrirEdicao}
             onExcluir={excluirAposta}
+            onAtualizarResultado={
+              atualizarResultadoRapido
+            }
           />
         </section>
       </div>

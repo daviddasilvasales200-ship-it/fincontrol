@@ -15,6 +15,7 @@ import CardCotaApi, {
 
 import CardResumoDica from "@/components/dicas/card-resumo-dica";
 import GraficosDicas from "@/components/dicas/graficos-dicas";
+import PainelPerformanceDicas from "@/components/dicas/painel-performance-dicas";
 import ListaDicas from "@/components/dicas/lista-dicas";
 
 import { createClient } from "@/lib/supabase/client";
@@ -169,6 +170,11 @@ export default function PaginaDicas() {
 
   const [dicas, setDicas] =
     useState<DicaAposta[]>([]);
+
+  const [
+    mostrarEstatisticas,
+    setMostrarEstatisticas,
+  ] = useState(false);
 
   const [busca, setBusca] =
     useState("");
@@ -1071,6 +1077,35 @@ export default function PaginaDicas() {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                setMostrarEstatisticas(
+                  (estadoAtual) =>
+                    !estadoAtual
+                )
+              }
+              aria-expanded={
+                mostrarEstatisticas
+              }
+              aria-controls="estatisticas-dicas"
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 py-3 text-sm font-semibold transition ${
+                mostrarEstatisticas
+                  ? "border-violet-700 bg-violet-950/50 text-violet-300 hover:border-violet-500 hover:bg-violet-950/70"
+                  : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900 hover:text-white"
+              }`}
+            >
+              <span aria-hidden="true">
+                {mostrarEstatisticas
+                  ? "◉"
+                  : "◎"}
+              </span>
+
+              {mostrarEstatisticas
+                ? "Ocultar estatísticas"
+                : "Mostrar estatísticas"}
+            </button>
+
             <Link
               href="/historico-dicas"
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-900/70 bg-blue-950/30 px-5 py-3 text-sm font-semibold text-blue-400 transition hover:border-blue-700 hover:bg-blue-950/50 hover:text-blue-300"
@@ -1185,12 +1220,45 @@ export default function PaginaDicas() {
           />
         </div>
 
-        <div className="mt-8">
-          <GraficosDicas
-            dicas={dicas}
-            carregando={carregando}
-          />
-        </div>
+        {mostrarEstatisticas && (
+          <section
+            id="estatisticas-dicas"
+            className="mt-8 space-y-8"
+          >
+            <div className="flex flex-col gap-3 rounded-2xl border border-violet-900/50 bg-violet-950/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-bold text-white">
+                  Estatísticas das dicas
+                </h2>
+
+                <p className="mt-1 text-sm text-zinc-500">
+                  Painéis gerais e análise de desempenho por mercado.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMostrarEstatisticas(
+                    false
+                  )
+                }
+                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-900 hover:text-white"
+              >
+                Ocultar painéis
+              </button>
+            </div>
+
+            <GraficosDicas
+              dicas={dicas}
+              carregando={carregando}
+            />
+
+            <PainelPerformanceDicas
+              dicas={dicas}
+            />
+          </section>
+        )}
 
         <section className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
           <div className="flex flex-col gap-3 border-b border-zinc-800 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
